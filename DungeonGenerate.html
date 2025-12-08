@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>随机地牢生成</title>
+    <style>
+        canvas { border: 2px solid #222; background: #111; }
+        .controls { margin: 10px 0; }
+        button { padding: 8px 16px; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 4px; }
+        button:hover { background: #555; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button onclick="generateDungeon()">重新生成地牢</button>
+        <span>地牢规格：80x60格子 | 白色=房间 | 灰色=走廊 | 黑色=墙壁 | 红色=入口 | 绿色=出口</span>
+    </div>
+    <canvas id="dungeonCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dungeonCanvas');
+        const ctx = canvas.getContext('2d');
+        const TILE_SIZE = 10; // 每个格子像素大小
+        const MAP_WIDTH = canvas.width / TILE_SIZE; // 地图宽度（格子数）
+        const MAP_HEIGHT = canvas.height / TILE_SIZE; // 地图高度（格子数）
+        const MAX_ROOMS = 15; // 最大房间数
+        const MIN_ROOM_SIZE = 4; // 房间最小尺寸（格子）
+        const MAX_ROOM_SIZE = 10; // 房间最大尺寸（格子）
+        const ROOM_PADDING = 2; // 房间间距（避免重叠）
+
+        // 地图数据（0=墙壁，1=房间，2=走廊，3=入口，4=出口）
+        let map = Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(0));
+        let rooms = []; // 存储所有房间信息
+
+        // 房间类（记录位置、尺寸、中心坐标）
+        class Room {
+            constructor(x, y, width, height) {
+                this.x = x; // 左上角x坐标（格子）
+                this.y = y; // 左上角y坐标（格子）
+                this.width = width;
+                this.height = height;
+                this.centerX = x + Math.floor(width / 2); // 中心x
+                this.centerY = y + Math.floor(height / 2); // 中心y
+            }
+
+            // 绘制房间（填充格子）
+            draw() {
+                ctx.fillStyle = '#ffffff';
+                for (let i = this.x; i < this.x + this.width; i++) {
+                    for (let j = this.y; j < this.y + this.height; j++) {
+                        if (i >= 0 && i < MAP_WIDTH && j >= 0 && j < MAP_HEIGHT) {
+                            map[j][i] = 1; // 标记为房间
+                            drawTile(i, j);
+                        }
+                    }
+                }
+            }
+
+            // 检查房间是否与其他房间重叠
+            isOverlapping(otherRoom) {
+                return !(
+                    this.x + this.width + ROOM_PADDING < otherRoom.x ||
+                    this.x > otherRoom.x + otherRoom.width + ROOM_PADDING ||
+                    this.y + this.height + ROOM_PADDING < otherRoom.y ||
+                    this.y > otherRoom.y + otherRoom.height + ROOM_PADDING
+                );
+            }
+        }
+
+        // 生成随机地牢核心函数
+        function generateDungeon() {
+            // 重置地图和房间数据
+            map = Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(0));
+            rooms = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 生成随机房间（避免重叠）
+            while (rooms.length < MAX_ROOMS) {
+                const width = Math.floor(Math.random() * (MAX_ROOM_SIZE - MIN_ROOM_SIZE + 1)) + MIN_ROOM_SIZE;
+                const height = Math.floor(Math.random() * (MAX_ROOM_SIZE - MIN_ROOM_SIZE + 1)) + MIN_ROOM_SIZE;
+                const x = Math.floor(Math.random() * (MAP_WIDTH - width - 2)) + 1; // 留1格边界
+                const y = Math.floor(Math.random() * (MAP_HEIGHT - height - 2)) + 1;
+
+                const newRoom = new Room(x, y, width, height);
+                // 检查是否与已有房间重叠
+                const isOverlap = rooms.some(room => newRoom.isOverlapping(room));
+                if (!isOverlap) {
+                    newRoom.draw();
+                    rooms.push(newRoom);
+                }
+            }
+
+            // 连接所有房间（按顺序连接相邻房间）
+            for (let i = 1; i < rooms.length; i++) {
+                const prevRoom = rooms[i - 1];
+                const currRoom = rooms[i];
+                connectRooms(prevRoom.centerX, prevRoom.centerY, currRoom.centerX, currRoom.centerY);
+            }
+
+            // 标记入口（第一个房间中心）和出口（最后一个房间中心）
+            const startX = rooms[0].centerX;
+            const startY = rooms[0].centerY;
+            const endX = rooms[rooms.length - 1].centerX;
+            const endY = rooms[rooms.length - 1].centerY;
+            map[startY][startX] = 3;
+            map[endY][endX] = 4;
+            ctx.fillStyle = '#ff0000';
+            drawTile(startX, startY);
+            ctx.fillStyle = '#00ff00';
+            drawTile(endX, endY);
+        }
+
+        // 连接两个房间（生成走廊）
+        function connectRooms(x1, y1, x2, y2) {
+            // 先水平连接，再垂直连接（或反之，增加随机性）
+            if (Math.random() > 0.5) {
+                // 水平 -> 垂直
+                drawCorridor(x1, y1, x2, y1);
+                drawCorridor(x2, y1, x2, y2);
+            } else {
+                // 垂直 -> 水平
+                drawCorridor(x1, y1, x1, y2);
+                drawCorridor(x1, y2, x2, y2);
+            }
+        }
+
+        // 绘制走廊（直线）
+        function drawCorridor(x1, y1, x2, y2) {
+            ctx.fillStyle = '#aaaaaa';
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+
+            // 水平走廊
+            if (y1 === y2) {
+                for (let x = minX; x <= maxX; x++) {
+                    if (map[y1][x] === 0) { // 只在墙壁上绘制走廊
+                        map[y1][x] = 2;
+                        drawTile(x, y1);
+                    }
+                }
+            } 
+            // 垂直走廊
+            else {
+                for (let y = minY; y <= maxY; y++) {
+                    if (map[y][x1] === 0) {
+                        map[y][x1] = 2;
+                        drawTile(x1, y);
+                    }
+                }
+            }
+        }
+
+        // 绘制单个格子
+        function drawTile(x, y) {
+            ctx.fillRect(
+                x * TILE_SIZE,
+                y * TILE_SIZE,
+                TILE_SIZE - 1, // 留1px间隙
+                TILE_SIZE - 1
+            );
+        }
+
+        // 初始化生成地牢
+        window.onload = generateDungeon;
+    </script>
+</body>
+</html>

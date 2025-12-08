@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>卫星测控仿真 - 随机地图生成</title>
+    <style>
+        canvas { border: 2px solid #333; background: #f5f5f5; }
+        .controls { margin: 10px 0; }
+        button { padding: 8px 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button onclick="generateMap()">重新生成地图</button>
+        <span>地图尺寸：50x50 | 地形类型：平原(浅绿)、山地(灰色)、森林(深绿)、水域(蓝色)</span>
+    </div>
+    <canvas id="mapCanvas" width="800" height="800"></canvas>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const TILE_SIZE = 16; // 每个格子大小（像素）
+        const MAP_WIDTH = 50; // 地图宽度（格子数）
+        const MAP_HEIGHT = 50; // 地图高度（格子数）
+
+        // 地形类型定义（数值对应随机数范围）
+        const TERRAIN_TYPES = [
+            { type: 'plain', color: '#a3d969', min: 0, max: 0.5 },    // 平原（50%概率）
+            { type: 'mountain', color: '#999999', min: 0.5, max: 0.7 }, // 山地（20%概率）
+            { type: 'forest', color: '#4a7c2e', min: 0.7, max: 0.9 },  // 森林（20%概率）
+            { type: 'water', color: '#5b9bd5', min: 0.9, max: 1.0 }    // 水域（10%概率）
+        ];
+
+        // 生成随机地图核心函数
+        function generateMap() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 遍历每个格子生成地形
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                for (let y = 0; y < MAP_HEIGHT; y++) {
+                    // 生成0-1的随机数（控制地形类型）
+                    const randomVal = Math.random();
+                    // 根据随机数匹配地形
+                    const terrain = TERRAIN_TYPES.find(t => 
+                        randomVal >= t.min && randomVal < t.max
+                    );
+                    // 绘制格子
+                    drawTile(x, y, terrain.color);
+                }
+            }
+
+            // 随机生成障碍物（可选，模拟测控站、障碍物等）
+            generateObstacles(30); // 生成30个障碍物
+        }
+
+        // 绘制单个格子
+        function drawTile(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(
+                x * TILE_SIZE, 
+                y * TILE_SIZE, 
+                TILE_SIZE - 1, // 留1px间隙区分格子
+                TILE_SIZE - 1
+            );
+        }
+
+        // 生成随机障碍物（黑色方块，模拟不可通行区域）
+        function generateObstacles(count) {
+            ctx.fillStyle = '#333333';
+            for (let i = 0; i < count; i++) {
+                const x = Math.floor(Math.random() * MAP_WIDTH);
+                const y = Math.floor(Math.random() * MAP_HEIGHT);
+                // 避免障碍物覆盖水域（可选逻辑）
+                const tileX = x * TILE_SIZE;
+                const tileY = y * TILE_SIZE;
+                const pixelData = ctx.getImageData(tileX, tileY, 1, 1).data;
+                const tileColor = `#${pixelData[0].toString(16)}${pixelData[1].toString(16)}${pixelData[2].toString(16)}`;
+                if (tileColor !== '#5b9bd5') { // 不是水域才生成障碍物
+                    ctx.fillRect(tileX, tileY, TILE_SIZE - 1, TILE_SIZE - 1);
+                }
+            }
+        }
+
+        // 初始化生成地图
+        window.onload = generateMap;
+    </script>
+</body>
+</html>
