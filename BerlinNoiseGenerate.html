@@ -2,199 +2,847 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>柏林噪声地形地图生成</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>柏林噪声(Perlin Noise)地图生成工具</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f0f0f0;
-            margin: 20px;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
         }
-        canvas {
-            border: 2px solid #333;
-            background-color: #fff;
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        .controls {
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #00c9ff, #92fe9d);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
             margin-bottom: 10px;
         }
-        button {
-            padding: 8px 16px;
-            cursor: pointer;
-            margin: 0 5px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.5;
         }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            min-width: 500px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        #mapCanvas {
+            width: 100%;
+            height: 500px;
+            background-color: #0a1520;
+            border-radius: 5px;
+            display: block;
+        }
+        
+        .controls {
+            flex: 0 0 300px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .controls h2 {
+            color: #00c9ff;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #2a3a4a;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00c9ff;
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #92fe9d;
+        }
+        
+        .color-legend {
+            display: flex;
+            margin-top: 10px;
+            height: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .color-legend span {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #00c9ff, #92fe9d);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
         button:hover {
-            background-color: #45a049;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 201, 255, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .terrain-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .terrain-type {
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .terrain-type:hover {
+            background-color: rgba(0, 201, 255, 0.2);
+        }
+        
+        .terrain-type.active {
+            background-color: rgba(0, 201, 255, 0.4);
+            border: 1px solid #00c9ff;
+        }
+        
+        .info-panel {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .info-panel h3 {
+            color: #92fe9d;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .algo-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .algo-info div {
+            flex: 1;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .button-group button {
+            flex: 1;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .export-buttons button {
+            margin-top: 0;
+        }
+        
+        @media (max-width: 900px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .canvas-container, .controls {
+                min-width: 100%;
+            }
+            
+            .algo-info {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <button onclick="generateMap()">重新生成地图</button>
-        <button onclick="zoomIn()">放大</button>
-        <button onclick="zoomOut()">缩小</button>
+    <div class="container">
+        <header>
+            <h1>柏林噪声(Perlin Noise)地图生成工具</h1>
+            <p class="subtitle">使用经典的柏林噪声算法生成自然、连续的地形图。柏林噪声是Ken Perlin在1983年开发的梯度噪声算法，广泛用于计算机图形学中生成自然纹理。</p>
+        </header>
+        
+        <div class="content">
+            <div class="canvas-container">
+                <canvas id="mapCanvas" width="800" height="500"></canvas>
+                <div class="color-legend">
+                    <span style="background-color: #000080;">深海</span>
+                    <span style="background-color: #1e3a8a;">海洋</span>
+                    <span style="background-color: #3b82f6;">浅海</span>
+                    <span style="background-color: #10b981;">沙滩</span>
+                    <span style="background-color: #22c55e;">草地</span>
+                    <span style="background-color: #84cc16;">森林</span>
+                    <span style="background-color: #ca8a04;">丘陵</span>
+                    <span style="background-color: #7c2d12;">山脉</span>
+                    <span style="background-color: #ffffff;">雪山</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <h2>地图参数控制</h2>
+                
+                <div class="control-group">
+                    <label for="seed">随机种子: <span id="seedValue">12345</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seed" min="1" max="99999" value="12345" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="scale">噪声缩放: <span id="scaleValue">150</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="scale" min="20" max="500" value="150" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="octaves">噪声层数: <span id="octavesValue">4</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="octaves" min="1" max="8" value="4" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="persistence">持续性: <span id="persistenceValue">0.5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="persistence" min="0.1" max="1" value="0.5" step="0.05">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="lacunarity">频率: <span id="lacunarityValue">2.0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="lacunarity" min="1" max="4" value="2.0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="seaLevel">海平面: <span id="seaLevelValue">0.4</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seaLevel" min="0" max="1" value="0.4" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="roughness">粗糙度: <span id="roughnessValue">1.0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="roughness" min="0.1" max="3" value="1.0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="smoothTerrain" checked>
+                    <label for="smoothTerrain">平滑地形过渡</label>
+                </div>
+                
+                <div class="button-group">
+                    <button id="generateBtn">生成新地图</button>
+                    <button id="randomSeedBtn">随机种子</button>
+                </div>
+                
+                <h2 style="margin-top: 30px;">地形类型预设</h2>
+                <div class="terrain-types">
+                    <div class="terrain-type active" data-type="continent">大陆</div>
+                    <div class="terrain-type" data-type="archipelago">群岛</div>
+                    <div class="terrain-type" data-type="mountainous">多山</div>
+                    <div class="terrain-type" data-type="flatlands">平原</div>
+                </div>
+                
+                <h2 style="margin-top: 30px;">导出地图</h2>
+                <div class="export-buttons">
+                    <button id="exportPNG">导出为PNG</button>
+                    <button id="exportHeightmap">导出高度图</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>关于柏林噪声算法</h3>
+            <p>柏林噪声(Perlin Noise)是由Ken Perlin在1983年开发的一种梯度噪声函数。它通过生成连续的、自然的随机值，广泛用于计算机图形学中模拟自然纹理，如云、火焰、地形等。</p>
+            
+            <div class="algo-info">
+                <div>
+                    <h4>柏林噪声的特点：</h4>
+                    <p>1. 连续性：生成的噪声值在空间上是连续的</p>
+                    <p>2. 可重复性：相同输入总是产生相同输出</p>
+                    <p>3. 自然性：生成的图案看起来自然有机</p>
+                    <p>4. 可缩放：可以通过参数控制特征大小</p>
+                </div>
+                <div>
+                    <h4>分形布朗运动：</h4>
+                    <p>通过叠加多个不同频率和振幅的柏林噪声层（分形布朗运动），可以生成更复杂、更自然的地形。本工具实现了这一点，允许您控制噪声层数、持续性和频率。</p>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>柏林噪声(Perlin Noise)地图生成工具 &copy; 2023 | 使用HTML5 Canvas和纯JavaScript实现</p>
+        </footer>
     </div>
-    <canvas id="mapCanvas" width="800" height="600"></canvas>
 
     <script>
-        // 柏林噪声核心实现
+        // 获取Canvas和Context
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 获取控制元素
+        const seedSlider = document.getElementById('seed');
+        const scaleSlider = document.getElementById('scale');
+        const octavesSlider = document.getElementById('octaves');
+        const persistenceSlider = document.getElementById('persistence');
+        const lacunaritySlider = document.getElementById('lacunarity');
+        const seaLevelSlider = document.getElementById('seaLevel');
+        const roughnessSlider = document.getElementById('roughness');
+        const smoothTerrainCheckbox = document.getElementById('smoothTerrain');
+        
+        const seedValue = document.getElementById('seedValue');
+        const scaleValue = document.getElementById('scaleValue');
+        const octavesValue = document.getElementById('octavesValue');
+        const persistenceValue = document.getElementById('persistenceValue');
+        const lacunarityValue = document.getElementById('lacunarityValue');
+        const seaLevelValue = document.getElementById('seaLevelValue');
+        const roughnessValue = document.getElementById('roughnessValue');
+        
+        const generateBtn = document.getElementById('generateBtn');
+        const randomSeedBtn = document.getElementById('randomSeedBtn');
+        const terrainTypes = document.querySelectorAll('.terrain-type');
+        const exportPNGBtn = document.getElementById('exportPNG');
+        const exportHeightmapBtn = document.getElementById('exportHeightmap');
+        
+        // 地形颜色映射
+        const terrainColors = [
+            {threshold: 0.0, color: '#000080', name: '深海'},      // 海军蓝
+            {threshold: 0.2, color: '#1e3a8a', name: '海洋'},      // 深蓝
+            {threshold: 0.3, color: '#3b82f6', name: '浅海'},      // 蓝色
+            {threshold: 0.4, color: '#10b981', name: '沙滩'},      // 翠绿
+            {threshold: 0.5, color: '#22c55e', name: '草地'},      // 绿色
+            {threshold: 0.65, color: '#84cc16', name: '森林'},     // 浅绿
+            {threshold: 0.75, color: '#ca8a04', name: '丘陵'},     // 琥珀色
+            {threshold: 0.85, color: '#7c2d12', name: '山脉'},     // 棕色
+            {threshold: 0.95, color: '#ffffff', name: '雪山'}      // 白色
+        ];
+        
+        // 地形预设
+        const terrainPresets = {
+            continent: {scale: 150, octaves: 4, persistence: 0.5, lacunarity: 2.0, seaLevel: 0.4, roughness: 1.0},
+            archipelago: {scale: 250, octaves: 6, persistence: 0.4, lacunarity: 2.5, seaLevel: 0.6, roughness: 1.5},
+            mountainous: {scale: 100, octaves: 5, persistence: 0.6, lacunarity: 1.8, seaLevel: 0.3, roughness: 2.0},
+            flatlands: {scale: 300, octaves: 3, persistence: 0.3, lacunarity: 2.2, seaLevel: 0.5, roughness: 0.5}
+        };
+        
+        // 柏林噪声类实现
         class PerlinNoise {
-            constructor(seed = Math.random()) {
-                this.seed = seed;
-                this.permutation = this.createPermutation();
+            constructor(seed) {
+                this.p = new Array(512);
+                this.permutation = new Array(256);
+                
+                // 初始化排列表
+                this.initPermutation(seed);
+                this.initP();
             }
-
-            // 创建置换表（用于梯度向量的随机选取）
-            createPermutation() {
-                const base = [151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
-                    140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120, 234,
-                    75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149,
-                    56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
-                    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46,
-                    245, 40, 244, 102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208,
-                    89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186,
-                    3, 64, 52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207,
-                    206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152,
-                    2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98,
-                    108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34, 242,
-                    193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-                    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4,
-                    150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66,
-                    215, 61, 156, 180];
-                // 加入种子打乱顺序（修复：使用seed作为随机数种子，确保每次打乱不同）
-                const shuffled = [...base].sort(() => (Math.random() - 0.5) * this.seed);
-                return [...shuffled, ...shuffled]; // 扩展为2倍长度，避免越界
-            }
-
-            // 计算点积
-            dotProduct(grad, x, y) {
-                switch (grad & 0x3) {
-                    case 0x0: return x + y;
-                    case 0x1: return -x + y;
-                    case 0x2: return x - y;
-                    case 0x3: return -x - y;
-                    default: return 0;
+            
+            // 初始化排列表
+            initPermutation(seed) {
+                // 使用种子初始化随机数生成器
+                const random = this.seededRandom(seed);
+                
+                // 创建0-255的数组
+                for (let i = 0; i < 256; i++) {
+                    this.permutation[i] = i;
+                }
+                
+                // 使用Fisher-Yates洗牌算法打乱数组
+                for (let i = 255; i > 0; i--) {
+                    const j = Math.floor(random() * (i + 1));
+                    [this.permutation[i], this.permutation[j]] = [this.permutation[j], this.permutation[i]];
                 }
             }
-
-            // 平滑插值函数（fade曲线）
-            fade(t) {
-                return t * t * t * (t * (t * 6 - 15) + 10);
+            
+            // 基于种子的伪随机数生成器
+            seededRandom(seed) {
+                return function() {
+                    seed = (seed * 9301 + 49297) % 233280;
+                    return seed / 233280;
+                };
             }
-
+            
+            // 初始化p数组（两倍的排列表）
+            initP() {
+                for (let i = 0; i < 512; i++) {
+                    this.p[i] = this.permutation[i % 256];
+                }
+            }
+            
             // 线性插值
             lerp(a, b, t) {
                 return a + t * (b - a);
             }
-
-            // 获取噪声值（2D）
-            getNoise(x, y) {
-                const X = Math.floor(x) & 0xff;
-                const Y = Math.floor(y) & 0xff;
-
+            
+            // 平滑曲线（5t^4 - 10t^3 + 10t^2 - 5t + 1 的改进版本）
+            fade(t) {
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            }
+            
+            // 梯度函数
+            grad(hash, x, y) {
+                // 将哈希值的最后4位用于选择梯度
+                const h = hash & 15;
+                const u = h < 8 ? x : y;
+                const v = h < 4 ? y : (h === 12 || h === 14 ? x : 0);
+                return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            }
+            
+            // 2D柏林噪声
+            noise(x, y) {
+                // 找到单位方格
+                const X = Math.floor(x) & 255;
+                const Y = Math.floor(y) & 255;
+                
+                // 找到在单位方格内的相对位置
                 x -= Math.floor(x);
                 y -= Math.floor(y);
-
+                
+                // 计算四个角落的梯度贡献
+                const n00 = this.grad(this.p[this.p[X] + Y], x, y);
+                const n01 = this.grad(this.p[this.p[X] + Y + 1], x, y - 1);
+                const n10 = this.grad(this.p[this.p[X + 1] + Y], x - 1, y);
+                const n11 = this.grad(this.p[this.p[X + 1] + Y + 1], x - 1, y - 1);
+                
+                // 计算平滑曲线权重
                 const u = this.fade(x);
                 const v = this.fade(y);
-
-                const A = this.permutation[X] + Y;
-                const B = this.permutation[X + 1] + Y;
-
-                const topLeft = this.dotProduct(this.permutation[A], x, y);
-                const topRight = this.dotProduct(this.permutation[B], x - 1, y);
-                const bottomLeft = this.dotProduct(this.permutation[A + 1], x, y - 1);
-                const bottomRight = this.dotProduct(this.permutation[B + 1], x - 1, y - 1);
-
-                const lerp1 = this.lerp(topLeft, topRight, u);
-                const lerp2 = this.lerp(bottomLeft, bottomRight, u);
-                return this.lerp(lerp1, lerp2, v);
-            }
-
-            // 多倍频噪声（叠加多个octave增强细节）
-            getFractalNoise(x, y, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
-                let total = 0;
-                let amplitude = 1;
-                let frequency = 1;
-                let maxValue = 0;
-
-                for (let i = 0; i < octaves; i++) {
-                    total += this.getNoise(x * frequency, y * frequency) * amplitude;
-                    maxValue += amplitude;
-                    amplitude *= persistence;
-                    frequency *= lacunarity;
-                }
-                return total / maxValue;
+                
+                // 在x方向进行线性插值
+                const nx0 = this.lerp(n00, n10, u);
+                const nx1 = this.lerp(n01, n11, u);
+                
+                // 在y方向进行线性插值，并返回结果
+                return this.lerp(nx0, nx1, v);
             }
         }
-
-        // 地图生成与渲染
-        const canvas = document.getElementById('mapCanvas');
-        const ctx = canvas.getContext('2d');
-        let noise; // 先声明，不初始化
-        let scale = 0.01; // 噪声缩放比例（越小地图越平滑，越大细节越多）
-        const octaves = 6; // 倍频数
-
-        // 地形颜色映射（根据噪声值对应不同地形）
-        function getTerrainColor(value) {
-            if (value < 0.2) return '#1a5276'; // 深海
-            if (value < 0.3) return '#2980b9'; // 浅海
-            if (value < 0.4) return '#f4d03f'; // 沙滩
-            if (value < 0.55) return '#229954'; // 平原/草地
-            if (value < 0.7) return '#196f3d'; // 森林
-            if (value < 0.85) return '#7f8c8d'; // 山地
-            return '#ecf0f1'; // 雪山
+        
+        // 分形布朗运动 - 叠加多个倍频程的柏林噪声
+        function fractalBrownianMotion(x, y, scale, octaves, persistence, lacunarity, roughness, noise) {
+            let value = 0;
+            let amplitude = 1;
+            let frequency = 1;
+            let maxValue = 0;
+            
+            for (let i = 0; i < octaves; i++) {
+                const noiseValue = noise.noise(x * frequency / scale, y * frequency / scale) * roughness;
+                value += noiseValue * amplitude;
+                maxValue += amplitude;
+                amplitude *= persistence;
+                frequency *= lacunarity;
+            }
+            
+            return value / maxValue;
         }
-
-        // 生成并绘制地图（核心修复：每次生成新的噪声实例）
+        
+        // 生成地图
         function generateMap() {
-            // 修复关键：每次生成新的PerlinNoise实例，使用随机种子
-            noise = new PerlinNoise(Math.random() * 1000);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const seed = parseInt(seedSlider.value);
+            const scale = parseFloat(scaleSlider.value);
+            const octaves = parseInt(octavesSlider.value);
+            const persistence = parseFloat(persistenceSlider.value);
+            const lacunarity = parseFloat(lacunaritySlider.value);
+            const seaLevel = parseFloat(seaLevelSlider.value);
+            const roughness = parseFloat(roughnessSlider.value);
+            const smoothTerrain = smoothTerrainCheckbox.checked;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 创建柏林噪声实例
+            const perlin = new PerlinNoise(seed);
+            
+            // 创建图像数据
+            const imageData = ctx.createImageData(width, height);
             const data = imageData.data;
-
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    // 获取多倍频柏林噪声值（范围[-1,1]，映射到[0,1]）
-                    const noiseValue = (noise.getFractalNoise(x * scale, y * scale, octaves) + 1) / 2;
-                    const color = hexToRgb(getTerrainColor(noiseValue));
-
-                    const index = (y * canvas.width + x) * 4;
-                    data[index] = color.r;
-                    data[index + 1] = color.g;
-                    data[index + 2] = color.b;
-                    data[index + 3] = 255; // 不透明度
+            
+            // 生成高度图
+            const heightMap = new Array(width * height);
+            
+            // 第一步：生成原始高度数据
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // 使用分形布朗运动生成高度值
+                    let elevation = fractalBrownianMotion(x, y, scale, octaves, persistence, lacunarity, roughness, perlin);
+                    
+                    // 归一化到0-1范围
+                    elevation = (elevation + 1) / 2;
+                    
+                    // 应用海平面
+                    if (elevation < seaLevel) {
+                        elevation = elevation / seaLevel * 0.4;
+                    } else {
+                        elevation = 0.4 + (elevation - seaLevel) / (1 - seaLevel) * 0.6;
+                    }
+                    
+                    // 确保在0-1范围内
+                    elevation = Math.max(0, Math.min(1, elevation));
+                    
+                    heightMap[y * width + x] = elevation;
                 }
             }
+            
+            // 第二步：应用平滑（如果需要）
+            if (smoothTerrain) {
+                const smoothedHeightMap = [...heightMap];
+                
+                // 简单的高斯模糊
+                const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+                const kernelSum = 16;
+                
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        let sum = 0;
+                        
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = (y + ky) * width + (x + kx);
+                                const kernelIdx = (ky + 1) * 3 + (kx + 1);
+                                sum += heightMap[idx] * kernel[kernelIdx];
+                            }
+                        }
+                        
+                        smoothedHeightMap[y * width + x] = sum / kernelSum;
+                    }
+                }
+                
+                // 将平滑后的高度图复制回去
+                for (let i = 0; i < heightMap.length; i++) {
+                    heightMap[i] = smoothedHeightMap[i];
+                }
+            }
+            
+            // 第三步：根据高度图设置颜色
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const elevation = heightMap[y * width + x];
+                    
+                    // 根据高度选择颜色
+                    let color = terrainColors[terrainColors.length - 1].color;
+                    for (let i = 0; i < terrainColors.length; i++) {
+                        if (elevation < terrainColors[i].threshold) {
+                            color = terrainColors[i].color;
+                            break;
+                        }
+                    }
+                    
+                    // 将颜色转换为RGB
+                    const r = parseInt(color.substr(1, 2), 16);
+                    const g = parseInt(color.substr(3, 2), 16);
+                    const b = parseInt(color.substr(5, 2), 16);
+                    
+                    // 设置像素颜色
+                    const index = (y * width + x) * 4;
+                    data[index] = r;     // 红
+                    data[index + 1] = g; // 绿
+                    data[index + 2] = b; // 蓝
+                    data[index + 3] = 255; // 透明度
+                }
+            }
+            
+            // 将图像数据绘制到画布
             ctx.putImageData(imageData, 0, 0);
+            
+            // 保存高度图供导出使用
+            canvas.heightMap = heightMap;
         }
-
-        // 十六进制颜色转RGB
-        function hexToRgb(hex) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return { r, g, b };
+        
+        // 更新显示值
+        function updateValues() {
+            seedValue.textContent = seedSlider.value;
+            scaleValue.textContent = scaleSlider.value;
+            octavesValue.textContent = octavesSlider.value;
+            persistenceValue.textContent = persistenceSlider.value;
+            lacunarityValue.textContent = lacunaritySlider.value;
+            seaLevelValue.textContent = seaLevelSlider.value;
+            roughnessValue.textContent = roughnessSlider.value;
         }
-
-        // 缩放控制
-        function zoomIn() {
-            scale *= 1.2;
-            generateMap(); // 缩放后重新生成（用新种子）
+        
+        // 应用地形预设
+        function applyTerrainPreset(presetName) {
+            const preset = terrainPresets[presetName];
+            
+            scaleSlider.value = preset.scale;
+            octavesSlider.value = preset.octaves;
+            persistenceSlider.value = preset.persistence;
+            lacunaritySlider.value = preset.lacunarity;
+            seaLevelSlider.value = preset.seaLevel;
+            roughnessSlider.value = preset.roughness;
+            
+            updateValues();
+            generateMap();
         }
-
-        function zoomOut() {
-            scale /= 1.2;
-            generateMap(); // 缩放后重新生成（用新种子）
+        
+        // 导出为PNG
+        function exportAsPNG() {
+            const link = document.createElement('a');
+            link.download = `perlin-map-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         }
-
-        // 初始化地图（首次创建噪声实例）
+        
+        // 导出高度图
+        function exportHeightmap() {
+            if (!canvas.heightMap) return;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const heightMap = canvas.heightMap;
+            
+            // 创建高度图画布
+            const heightmapCanvas = document.createElement('canvas');
+            heightmapCanvas.width = width;
+            heightmapCanvas.height = height;
+            const heightmapCtx = heightmapCanvas.getContext('2d');
+            
+            // 创建高度图图像数据
+            const imageData = heightmapCtx.createImageData(width, height);
+            const data = imageData.data;
+            
+            // 将高度值转换为灰度
+            for (let i = 0; i < heightMap.length; i++) {
+                const heightValue = Math.floor(heightMap[i] * 255);
+                const idx = i * 4;
+                
+                data[idx] = heightValue;     // 红
+                data[idx + 1] = heightValue; // 绿
+                data[idx + 2] = heightValue; // 蓝
+                data[idx + 3] = 255;        // 透明度
+            }
+            
+            heightmapCtx.putImageData(imageData, 0, 0);
+            
+            // 下载高度图
+            const link = document.createElement('a');
+            link.download = `perlin-heightmap-${Date.now()}.png`;
+            link.href = heightmapCanvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 事件监听器
+        seedSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        scaleSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        octavesSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        persistenceSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        lacunaritySlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        seaLevelSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        roughnessSlider.addEventListener('input', () => {
+            updateValues();
+            generateMap();
+        });
+        
+        smoothTerrainCheckbox.addEventListener('change', () => {
+            generateMap();
+        });
+        
+        generateBtn.addEventListener('click', () => {
+            generateMap();
+        });
+        
+        randomSeedBtn.addEventListener('click', () => {
+            const randomSeed = Math.floor(Math.random() * 99999) + 1;
+            seedSlider.value = randomSeed;
+            updateValues();
+            generateMap();
+        });
+        
+        // 地形类型选择
+        terrainTypes.forEach(type => {
+            type.addEventListener('click', () => {
+                // 移除所有active类
+                terrainTypes.forEach(t => t.classList.remove('active'));
+                // 添加active类到当前选择
+                type.classList.add('active');
+                
+                // 应用预设
+                const presetType = type.getAttribute('data-type');
+                applyTerrainPreset(presetType);
+            });
+        });
+        
+        // 导出按钮
+        exportPNGBtn.addEventListener('click', exportAsPNG);
+        exportHeightmapBtn.addEventListener('click', exportHeightmap);
+        
+        // 初始生成地图
+        updateValues();
         generateMap();
+        
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'g') {
+                e.preventDefault();
+                generateMap();
+            }
+            
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                const randomSeed = Math.floor(Math.random() * 99999) + 1;
+                seedSlider.value = randomSeed;
+                updateValues();
+                generateMap();
+            }
+            
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                exportAsPNG();
+            }
+        });
     </script>
 </body>
 </html>

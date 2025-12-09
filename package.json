@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "open-simplex-noise": "^2.5.0"
+  }
+}

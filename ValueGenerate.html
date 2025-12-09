@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Value噪声地图生成工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c0f2e, #1d2671, #3a3d8a);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #8a2be2, #4169e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            min-width: 500px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #mapCanvas {
+            width: 100%;
+            height: 500px;
+            background-color: #0a0a1a;
+            border-radius: 5px;
+            display: block;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .color-legend {
+            display: flex;
+            margin-top: 10px;
+            height: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .color-legend span {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #8a2be2;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        
+        .controls {
+            flex: 0 0 300px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .controls h2 {
+            color: #8a2be2;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #ddd;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #2a3a4a;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #8a2be2;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #4169e1;
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #8a2be2, #4169e1);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .map-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .map-type {
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .map-type:hover {
+            background-color: rgba(138, 43, 226, 0.2);
+            border-color: #8a2be2;
+        }
+        
+        .map-type.active {
+            background-color: rgba(138, 43, 226, 0.4);
+            border: 1px solid #8a2be2;
+        }
+        
+        .info-panel {
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-panel h3 {
+            color: #4169e1;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .algo-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .algo-info div {
+            flex: 1;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            border-left: 3px solid #8a2be2;
+        }
+        
+        .algorithm-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .algorithm-btn {
+            flex: 1;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            color: #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .algorithm-btn:hover {
+            background-color: rgba(138, 43, 226, 0.2);
+            border-color: #8a2be2;
+        }
+        
+        .algorithm-btn.active {
+            background-color: rgba(138, 43, 226, 0.4);
+            border: 1px solid #8a2be2;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            accent-color: #8a2be2;
+        }
+        
+        .interpolation-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .interpolation-option {
+            flex: 1;
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .interpolation-option:hover {
+            background-color: rgba(138, 43, 226, 0.2);
+            border-color: #8a2be2;
+        }
+        
+        .interpolation-option.active {
+            background-color: rgba(138, 43, 226, 0.4);
+            border: 1px solid #8a2be2;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .export-buttons button {
+            margin-top: 0;
+        }
+        
+        .performance-info {
+            display: flex;
+            justify-content: space-between;
+            background-color: rgba(138, 43, 226, 0.1);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .button-group button {
+            flex: 1;
+        }
+        
+        @media (max-width: 900px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .canvas-container, .controls {
+                min-width: 100%;
+            }
+            
+            .algo-info {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Value噪声地图生成工具</h1>
+            <p class="subtitle">使用Value噪声（值噪声）算法生成连续、平滑的地形图。Value噪声是最简单的噪声算法之一，通过网格点上的随机值和插值生成平滑噪声。</p>
+        </header>
+        
+        <div class="content">
+            <div class="canvas-container">
+                <canvas id="mapCanvas" width="800" height="500"></canvas>
+                <div class="color-legend">
+                    <span style="background-color: #1a1a2e;">最低</span>
+                    <span style="background-color: #16213e;">低</span>
+                    <span style="background-color: #0f3460;">中低</span>
+                    <span style="background-color: #1a5f7a;">中</span>
+                    <span style="background-color: #1597bb;">中高</span>
+                    <span style="background-color: #57cc99;">高</span>
+                    <span style="background-color: #80ed99;">很高</span>
+                    <span style="background-color: #c7f9cc;">最高</span>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="renderTime">0ms</div>
+                        <div class="stat-label">渲染时间</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="resolution">800×500</div>
+                        <div class="stat-label">分辨率</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="octavesValue">1</div>
+                        <div class="stat-label">倍频程</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <h2>生成算法</h2>
+                <div class="algorithm-selector">
+                    <div class="algorithm-btn active" data-algorithm="value">Value噪声</div>
+                    <div class="algorithm-btn" data-algorithm="fbm">分形布朗运动</div>
+                </div>
+                
+                <h2>噪声参数</h2>
+                
+                <div class="control-group">
+                    <label for="seed">随机种子: <span id="seedValue">12345</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seed" min="1" max="99999" value="12345" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="scale">噪声缩放: <span id="scaleValue">0.02</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="scale" min="0.001" max="0.1" value="0.02" step="0.001">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="octaves">倍频程(分形): <span id="octavesValue">4</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="octaves" min="1" max="8" value="4" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="persistence">持续性: <span id="persistenceValue">0.5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="persistence" min="0.1" max="1" value="0.5" step="0.05">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="lacunarity">频率: <span id="lacunarityValue">2.0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="lacunarity" min="1" max="4" value="2.0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="offsetX">X偏移: <span id="offsetXValue">0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="offsetX" min="0" max="1000" value="0" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="offsetY">Y偏移: <span id="offsetYValue">0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="offsetY" min="0" max="1000" value="0" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>插值函数</label>
+                    <div class="interpolation-selector">
+                        <div class="interpolation-option active" data-type="linear">线性</div>
+                        <div class="interpolation-option" data-type="cosine">余弦</div>
+                        <div class="interpolation-option" data-type="cubic">三次</div>
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="invert" checked>
+                    <label for="invert">反相颜色</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showGrid" checked>
+                    <label for="showGrid">显示网格点</label>
+                </div>
+                
+                <div class="button-group">
+                    <button id="generateBtn">生成地图</button>
+                    <button id="randomBtn">随机种子</button>
+                </div>
+                
+                <h2 style="margin-top: 30px;">地图类型预设</h2>
+                <div class="map-types">
+                    <div class="map-type active" data-preset="terrain">地形</div>
+                    <div class="map-type" data-preset="clouds">云朵</div>
+                    <div class="map-type" data-preset="marble">大理石</div>
+                    <div class="map-type" data-preset="wood">木纹</div>
+                </div>
+                
+                <h2 style="margin-top: 30px;">导出地图</h2>
+                <div class="export-buttons">
+                    <button id="exportPNG">导出为PNG</button>
+                    <button id="exportNoise">导出噪声图</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>关于Value噪声算法</h3>
+            <p>Value噪声（也称值噪声）是最简单的程序化噪声算法之一。与Perlin噪声和Simplex噪声使用梯度不同，Value噪声直接在网格点（格点）上定义随机值，然后在点之间进行插值来生成连续的噪声场。</p>
+            
+            <div class="algo-info">
+                <div>
+                    <h4>算法原理：</h4>
+                    <p>1. 在整数网格点上定义随机值（-1到1）</p>
+                    <p>2. 对于任意点，找到其所在的网格单元</p>
+                    <p>3. 获取四个角落的随机值</p>
+                    <p>4. 使用插值函数计算中间点的值</p>
+                </div>
+                <div>
+                    <h4>插值函数：</h4>
+                    <p>• 线性插值：计算简单，但不够平滑</p>
+                    <p>• 余弦插值：使用S曲线，更平滑</p>
+                    <p>• 三次插值：使用三次函数，最平滑</p>
+                    <p>不同插值函数影响噪声的平滑程度</p>
+                </div>
+                <div>
+                    <h4>分形布朗运动：</h4>
+                    <p>通过叠加多个不同频率和振幅的噪声层（倍频程）生成更复杂、更自然的图案。这是创建自然地形纹理的关键技术。</p>
+                </div>
+            </div>
+            
+            <div class="performance-info">
+                <div>Value噪声计算简单，适合实时应用</div>
+                <div id="performanceStatus">性能良好</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Value噪声地图生成工具 &copy; 2023 | 使用HTML5 Canvas和纯JavaScript实现</p>
+        </footer>
+    </div>
+
+    <script>
+        // 获取Canvas和Context
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 获取控制元素
+        const seedSlider = document.getElementById('seed');
+        const scaleSlider = document.getElementById('scale');
+        const octavesSlider = document.getElementById('octaves');
+        const persistenceSlider = document.getElementById('persistence');
+        const lacunaritySlider = document.getElementById('lacunarity');
+        const offsetXSlider = document.getElementById('offsetX');
+        const offsetYSlider = document.getElementById('offsetY');
+        const invertCheckbox = document.getElementById('invert');
+        const showGridCheckbox = document.getElementById('showGrid');
+        
+        const seedValue = document.getElementById('seedValue');
+        const scaleValue = document.getElementById('scaleValue');
+        const octavesValue = document.getElementById('octavesValue');
+        const persistenceValue = document.getElementById('persistenceValue');
+        const lacunarityValue = document.getElementById('lacunarityValue');
+        const offsetXValue = document.getElementById('offsetXValue');
+        const offsetYValue = document.getElementById('offsetYValue');
+        
+        const generateBtn = document.getElementById('generateBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const exportPNGBtn = document.getElementById('exportPNG');
+        const exportNoiseBtn = document.getElementById('exportNoise');
+        const algorithmBtns = document.querySelectorAll('.algorithm-btn');
+        const mapTypes = document.querySelectorAll('.map-type');
+        const interpolationOptions = document.querySelectorAll('.interpolation-option');
+        
+        const renderTimeStat = document.getElementById('renderTime');
+        const resolutionStat = document.getElementById('resolution');
+        const performanceStatus = document.getElementById('performanceStatus');
+        
+        // 颜色映射
+        const COLOR_MAP = [
+            {threshold: 0.0, color: '#1a1a2e'},
+            {threshold: 0.1, color: '#16213e'},
+            {threshold: 0.2, color: '#0f3460'},
+            {threshold: 0.4, color: '#1a5f7a'},
+            {threshold: 0.6, color: '#1597bb'},
+            {threshold: 0.7, color: '#57cc99'},
+            {threshold: 0.8, color: '#80ed99'},
+            {threshold: 0.9, color: '#c7f9cc'}
+        ];
+        
+        // 地图预设
+        const MAP_PRESETS = {
+            terrain: {scale: 0.02, octaves: 4, persistence: 0.5, lacunarity: 2.0, offsetX: 0, offsetY: 0},
+            clouds: {scale: 0.01, octaves: 6, persistence: 0.4, lacunarity: 2.2, offsetX: 0, offsetY: 0},
+            marble: {scale: 0.005, octaves: 8, persistence: 0.6, lacunarity: 2.5, offsetX: 0, offsetY: 0},
+            wood: {scale: 0.03, octaves: 3, persistence: 0.3, lacunarity: 1.8, offsetX: 0, offsetY: 0}
+        };
+        
+        // 当前算法和插值函数
+        let currentAlgorithm = 'value';
+        let currentInterpolation = 'linear';
+        
+        // 随机数生成器
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+            }
+            
+            random() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            
+            randomInt(min, max) {
+                return Math.floor(this.random() * (max - min + 1)) + min;
+            }
+            
+            // 生成介于-1和1之间的随机数
+            randomSigned() {
+                return this.random() * 2 - 1;
+            }
+        }
+        
+        // Value噪声生成器
+        class ValueNoise {
+            constructor(seed, interpolation = 'linear') {
+                this.seed = seed;
+                this.random = new SeededRandom(seed);
+                this.gradientTable = new Array(256);
+                this.permutationTable = new Array(512);
+                this.interpolationType = interpolation;
+                
+                this.initializeTables();
+            }
+            
+            // 初始化排列表
+            initializeTables() {
+                // 生成随机值表
+                for (let i = 0; i < 256; i++) {
+                    this.gradientTable[i] = this.random.randomSigned();
+                }
+                
+                // 生成排列表
+                for (let i = 0; i < 256; i++) {
+                    this.permutationTable[i] = i;
+                }
+                
+                // 打乱排列表
+                for (let i = 255; i > 0; i--) {
+                    const j = Math.floor(this.random.random() * (i + 1));
+                    [this.permutationTable[i], this.permutationTable[j]] = [this.permutationTable[j], this.permutationTable[i]];
+                }
+                
+                // 复制排列表以简化索引
+                for (let i = 256; i < 512; i++) {
+                    this.permutationTable[i] = this.permutationTable[i - 256];
+                }
+            }
+            
+            // 插值函数
+            interpolate(a, b, t) {
+                switch(this.interpolationType) {
+                    case 'linear':
+                        return this.linearInterpolate(a, b, t);
+                    case 'cosine':
+                        return this.cosineInterpolate(a, b, t);
+                    case 'cubic':
+                        return this.cubicInterpolate(a, b, t);
+                    default:
+                        return this.linearInterpolate(a, b, t);
+                }
+            }
+            
+            linearInterpolate(a, b, t) {
+                return a + (b - a) * t;
+            }
+            
+            cosineInterpolate(a, b, t) {
+                const ft = t * Math.PI;
+                const f = (1 - Math.cos(ft)) * 0.5;
+                return a * (1 - f) + b * f;
+            }
+            
+            cubicInterpolate(a, b, t) {
+                return t * t * (3 - 2 * t) * (b - a) + a;
+            }
+            
+            // 获取梯度值
+            getGradient(x, y) {
+                const index = this.permutationTable[(x + this.permutationTable[y & 255]) & 255];
+                return this.gradientTable[index];
+            }
+            
+            // 2D Value噪声
+            noise2D(x, y) {
+                const xi = Math.floor(x);
+                const yi = Math.floor(y);
+                
+                const tx = x - xi;
+                const ty = y - yi;
+                
+                const rx0 = xi & 255;
+                const rx1 = (xi + 1) & 255;
+                const ry0 = yi & 255;
+                const ry1 = (yi + 1) & 255;
+                
+                // 获取四个角落的随机值
+                const c00 = this.getGradient(rx0, ry0);
+                const c10 = this.getGradient(rx1, ry0);
+                const c01 = this.getGradient(rx0, ry1);
+                const c11 = this.getGradient(rx1, ry1);
+                
+                // 在X方向插值
+                const nx0 = this.interpolate(c00, c10, tx);
+                const nx1 = this.interpolate(c01, c11, tx);
+                
+                // 在Y方向插值
+                return this.interpolate(nx0, nx1, ty);
+            }
+            
+            // 分形布朗运动
+            fbm(x, y, octaves, persistence, lacunarity) {
+                let value = 0;
+                let amplitude = 1;
+                let maxValue = 0;
+                
+                for (let i = 0; i < octaves; i++) {
+                    value += this.noise2D(x, y) * amplitude;
+                    maxValue += amplitude;
+                    amplitude *= persistence;
+                    x *= lacunarity;
+                    y *= lacunarity;
+                }
+                
+                return value / maxValue;
+            }
+        }
+        
+        // 更新显示值
+        function updateUIValues() {
+            seedValue.textContent = seedSlider.value;
+            scaleValue.textContent = parseFloat(scaleSlider.value).toFixed(3);
+            octavesValue.textContent = octavesSlider.value;
+            persistenceValue.textContent = parseFloat(persistenceSlider.value).toFixed(2);
+            lacunarityValue.textContent = parseFloat(lacunaritySlider.value).toFixed(1);
+            offsetXValue.textContent = offsetXSlider.value;
+            offsetYValue.textContent = offsetYSlider.value;
+        }
+        
+        // 根据值获取颜色
+        function getColorForValue(value, invert) {
+            let normalized = (value + 1) / 2; // 从[-1,1]映射到[0,1]
+            if (invert) {
+                normalized = 1 - normalized;
+            }
+            
+            // 找到对应的颜色
+            for (let i = 0; i < COLOR_MAP.length; i++) {
+                if (normalized <= COLOR_MAP[i].threshold || i === COLOR_MAP.length - 1) {
+                    return COLOR_MAP[i].color;
+                }
+            }
+            
+            return COLOR_MAP[0].color;
+        }
+        
+        // 生成地图
+        function generateMap() {
+            const startTime = performance.now();
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            const seed = parseInt(seedSlider.value);
+            const scale = parseFloat(scaleSlider.value);
+            const octaves = parseInt(octavesSlider.value);
+            const persistence = parseFloat(persistenceSlider.value);
+            const lacunarity = parseFloat(lacunaritySlider.value);
+            const offsetX = parseInt(offsetXSlider.value);
+            const offsetY = parseInt(offsetYSlider.value);
+            const invert = invertCheckbox.checked;
+            const showGrid = showGridCheckbox.checked;
+            
+            // 创建噪声生成器
+            const noiseGenerator = new ValueNoise(seed, currentInterpolation);
+            
+            // 创建图像数据
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            // 计算噪声值的范围
+            let minValue = Infinity;
+            let maxValue = -Infinity;
+            const noiseValues = new Array(height);
+            
+            for (let y = 0; y < height; y++) {
+                noiseValues[y] = new Array(width);
+                for (let x = 0; x < width; x++) {
+                    let noiseValue;
+                    
+                    if (currentAlgorithm === 'value') {
+                        // 单层Value噪声
+                        noiseValue = noiseGenerator.noise2D(
+                            (x + offsetX) * scale,
+                            (y + offsetY) * scale
+                        );
+                    } else {
+                        // 分形布朗运动
+                        noiseValue = noiseGenerator.fbm(
+                            (x + offsetX) * scale,
+                            (y + offsetY) * scale,
+                            octaves,
+                            persistence,
+                            lacunarity
+                        );
+                    }
+                    
+                    noiseValues[y][x] = noiseValue;
+                    minValue = Math.min(minValue, noiseValue);
+                    maxValue = Math.max(maxValue, noiseValue);
+                }
+            }
+            
+            // 归一化并应用颜色映射
+            const valueRange = maxValue - minValue;
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // 归一化到[-1,1]范围
+                    const normalizedValue = valueRange > 0 ? 
+                        ((noiseValues[y][x] - minValue) / valueRange) * 2 - 1 : 0;
+                    
+                    const color = getColorForValue(normalizedValue, invert);
+                    const r = parseInt(color.substr(1, 2), 16);
+                    const g = parseInt(color.substr(3, 2), 16);
+                    const b = parseInt(color.substr(5, 2), 16);
+                    
+                    const index = (y * width + x) * 4;
+                    data[index] = r;
+                    data[index + 1] = g;
+                    data[index + 2] = b;
+                    data[index + 3] = 255;
+                }
+            }
+            
+            // 绘制到画布
+            ctx.putImageData(imageData, 0, 0);
+            
+            // 绘制网格点
+            if (showGrid) {
+                drawGrid(noiseGenerator, width, height, scale, offsetX, offsetY);
+            }
+            
+            // 更新统计信息
+            const renderTime = performance.now() - startTime;
+            renderTimeStat.textContent = Math.round(renderTime) + 'ms';
+            resolutionStat.textContent = `${width}×${height}`;
+            
+            // 更新性能状态
+            if (renderTime < 50) {
+                performanceStatus.textContent = '性能良好';
+                performanceStatus.style.color = '#57cc99';
+            } else if (renderTime < 200) {
+                performanceStatus.textContent = '性能一般';
+                performanceStatus.style.color = '#ffd700';
+            } else {
+                performanceStatus.textContent = '性能较差';
+                performanceStatus.style.color = '#ff6b6b';
+            }
+        }
+        
+        // 绘制网格点
+        function drawGrid(noiseGenerator, width, height, scale, offsetX, offsetY) {
+            const gridSize = 20;
+            const cellSize = 1 / scale;
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 0.5;
+            
+            // 绘制垂直线
+            for (let x = 0; x <= width; x += cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            
+            // 绘制水平线
+            for (let y = 0; y <= height; y += cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // 绘制网格点
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            for (let y = 0; y < height; y += cellSize) {
+                for (let x = 0; x < width; x += cellSize) {
+                    const gridX = Math.floor((x + offsetX) * scale);
+                    const gridY = Math.floor((y + offsetY) * scale);
+                    
+                    // 获取网格点的噪声值
+                    const value = noiseGenerator.getGradient(gridX, gridY);
+                    
+                    // 根据值设置点的大小
+                    const radius = Math.abs(value) * 2 + 1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // 应用预设
+        function applyPreset(presetName) {
+            const preset = MAP_PRESETS[presetName];
+            
+            scaleSlider.value = preset.scale;
+            octavesSlider.value = preset.octaves;
+            persistenceSlider.value = preset.persistence;
+            lacunaritySlider.value = preset.lacunarity;
+            
+            updateUIValues();
+            generateMap();
+        }
+        
+        // 导出为PNG
+        function exportAsPNG() {
+            const link = document.createElement('a');
+            link.download = `value-noise-map-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 导出噪声图
+        function exportNoiseMap() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const seed = parseInt(seedSlider.value);
+            const scale = parseFloat(scaleSlider.value);
+            const offsetX = parseInt(offsetXSlider.value);
+            const offsetY = parseInt(offsetYSlider.value);
+            
+            const noiseGenerator = new ValueNoise(seed, currentInterpolation);
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = width;
+            exportCanvas.height = height;
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            const imageData = exportCtx.createImageData(width, height);
+            const data = imageData.data;
+            
+            // 计算噪声值
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const noiseValue = noiseGenerator.noise2D(
+                        (x + offsetX) * scale,
+                        (y + offsetY) * scale
+                    );
+                    
+                    // 归一化到[0,255]范围
+                    const grayscale = Math.floor((noiseValue + 1) * 127.5);
+                    
+                    const index = (y * width + x) * 4;
+                    data[index] = grayscale;     // 红色通道
+                    data[index + 1] = grayscale; // 绿色通道
+                    data[index + 2] = grayscale; // 蓝色通道
+                    data[index + 3] = 255;      // 透明度
+                }
+            }
+            
+            exportCtx.putImageData(imageData, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `value-noise-${Date.now()}.png`;
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 事件监听器
+        seedSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        scaleSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        octavesSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        persistenceSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        lacunaritySlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        offsetXSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        offsetYSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        invertCheckbox.addEventListener('change', () => {
+            generateMap();
+        });
+        
+        showGridCheckbox.addEventListener('change', () => {
+            generateMap();
+        });
+        
+        generateBtn.addEventListener('click', () => {
+            generateMap();
+        });
+        
+        randomBtn.addEventListener('click', () => {
+            const randomSeed = Math.floor(Math.random() * 99999) + 1;
+            seedSlider.value = randomSeed;
+            updateUIValues();
+            generateMap();
+        });
+        
+        // 算法选择
+        algorithmBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                algorithmBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAlgorithm = btn.getAttribute('data-algorithm');
+                generateMap();
+            });
+        });
+        
+        // 插值函数选择
+        interpolationOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                interpolationOptions.forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                currentInterpolation = option.getAttribute('data-type');
+                generateMap();
+            });
+        });
+        
+        // 预设类型选择
+        mapTypes.forEach(type => {
+            type.addEventListener('click', () => {
+                mapTypes.forEach(t => t.classList.remove('active'));
+                type.classList.add('active');
+                applyPreset(type.getAttribute('data-preset'));
+            });
+        });
+        
+        // 导出按钮
+        exportPNGBtn.addEventListener('click', exportAsPNG);
+        exportNoiseBtn.addEventListener('click', exportNoiseMap);
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'g') {
+                e.preventDefault();
+                generateMap();
+            }
+            
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                randomBtn.click();
+            }
+            
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                exportAsPNG();
+            }
+        });
+        
+        // 初始生成地图
+        updateUIValues();
+        generateMap();
+    </script>
+</body>
+</html>

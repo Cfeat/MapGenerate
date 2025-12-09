@@ -1,169 +1,1416 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>随机地牢生成</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地牢地图生成工具</title>
     <style>
-        canvas { border: 2px solid #222; background: #111; }
-        .controls { margin: 10px 0; }
-        button { padding: 8px 16px; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 4px; }
-        button:hover { background: #555; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c0c0c, #1a1a2e, #16213e);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            min-width: 500px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+        
+        #dungeonCanvas {
+            width: 100%;
+            height: 500px;
+            background-color: #0a0a0a;
+            border-radius: 5px;
+            display: block;
+            border: 1px solid #333;
+        }
+        
+        .controls {
+            flex: 0 0 300px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+        
+        .controls h2 {
+            color: #ff416c;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #ddd;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff416c;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(255, 65, 108, 0.5);
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #ff416c;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .legend-text {
+            font-size: 0.9rem;
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .dungeon-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .dungeon-type {
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #333;
+        }
+        
+        .dungeon-type:hover {
+            background-color: rgba(255, 65, 108, 0.2);
+            border-color: #ff416c;
+        }
+        
+        .dungeon-type.active {
+            background-color: rgba(255, 65, 108, 0.4);
+            border: 1px solid #ff416c;
+        }
+        
+        .info-panel {
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+        
+        .info-panel h3 {
+            color: #ff4b2b;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .algo-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .algo-info div {
+            flex: 1;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            border-left: 3px solid #ff416c;
+        }
+        
+        .algorithm-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .algorithm-btn {
+            flex: 1;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 5px;
+            color: #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .algorithm-btn:hover {
+            background-color: rgba(255, 65, 108, 0.2);
+            border-color: #ff416c;
+        }
+        
+        .algorithm-btn.active {
+            background-color: rgba(255, 65, 108, 0.4);
+            border: 1px solid #ff416c;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            accent-color: #ff416c;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ff416c;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        
+        @media (max-width: 900px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .canvas-container, .controls {
+                min-width: 100%;
+            }
+            
+            .algo-info {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <button onclick="generateDungeon()">重新生成地牢</button>
-        <span>地牢规格：80x60格子 | 白色=房间 | 灰色=走廊 | 黑色=墙壁 | 红色=入口 | 绿色=出口</span>
+    <div class="container">
+        <header>
+            <h1>地牢地图生成工具</h1>
+            <p class="subtitle">使用随机房间布局和迷宫算法生成程序化地牢地图。可选择不同算法生成各种风格的地牢，包括传统RPG地牢、洞穴、迷宫等。</p>
+        </header>
+        
+        <div class="content">
+            <div class="canvas-container">
+                <canvas id="dungeonCanvas" width="800" height="500"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #1a1a2e;"></div>
+                        <div class="legend-text">墙壁</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4a4a6d;"></div>
+                        <div class="legend-text">房间</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e94560;"></div>
+                        <div class="legend-text">走廊</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f9b572;"></div>
+                        <div class="legend-text">起始点</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #0f0;"></div>
+                        <div class="legend-text">出口</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ffd700;"></div>
+                        <div class="legend-text">宝箱</div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="roomCount">0</div>
+                        <div class="stat-label">房间数</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="corridorCount">0</div>
+                        <div class="stat-label">走廊数</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="mapSize">0×0</div>
+                        <div class="stat-label">地图尺寸</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <h2>生成算法</h2>
+                <div class="algorithm-selector">
+                    <div class="algorithm-btn active" data-algorithm="rooms">随机房间</div>
+                    <div class="algorithm-btn" data-algorithm="cellular">细胞自动机</div>
+                    <div class="algorithm-btn" data-algorithm="bsp">BSP分割</div>
+                </div>
+                
+                <h2>地牢参数</h2>
+                
+                <div class="control-group">
+                    <label for="seed">随机种子: <span id="seedValue">12345</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seed" min="1" max="99999" value="12345" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="width">地图宽度: <span id="widthValue">80</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="width" min="40" max="120" value="80" step="5">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="height">地图高度: <span id="heightValue">50</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="height" min="30" max="80" value="50" step="5">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="roomCountSlider">房间数量: <span id="roomCountValue">15</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="roomCountSlider" min="5" max="30" value="15" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="roomMinSize">最小房间尺寸: <span id="roomMinSizeValue">4</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="roomMinSize" min="3" max="8" value="4" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="roomMaxSize">最大房间尺寸: <span id="roomMaxSizeValue">8</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="roomMaxSize" min="5" max="12" value="8" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="corridorWidth">走廊宽度: <span id="corridorWidthValue">1</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="corridorWidth" min="1" max="3" value="1" step="1">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="addChests" checked>
+                    <label for="addChests">添加宝箱</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="addEnemies" checked>
+                    <label for="addEnemies">添加敌人(标记)</label>
+                </div>
+                
+                <button id="generateBtn">生成地牢</button>
+                <button id="randomSeedBtn">随机种子</button>
+                
+                <h2 style="margin-top: 30px;">地牢类型预设</h2>
+                <div class="dungeon-types">
+                    <div class="dungeon-type active" data-type="classic">经典地牢</div>
+                    <div class="dungeon-type" data-type="cave">洞穴</div>
+                    <div class="dungeon-type" data-type="maze">迷宫</div>
+                    <div class="dungeon-type" data-type="fortress">堡垒</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>地牢生成算法说明</h3>
+            
+            <div class="algo-info">
+                <div>
+                    <h4>随机房间算法</h4>
+                    <p>1. 在地图内随机生成多个房间，确保房间不重叠</p>
+                    <p>2. 使用Delaunay三角剖分或最小生成树连接房间</p>
+                    <p>3. 在房间之间创建走廊连接</p>
+                    <p>4. 添加起始点和出口</p>
+                </div>
+                <div>
+                    <h4>细胞自动机</h4>
+                    <p>1. 随机初始化细胞状态(墙/地板)</p>
+                    <p>2. 应用细胞自动机规则进行迭代</p>
+                    <p>3. 平滑结果生成自然洞穴结构</p>
+                    <p>4. 识别并连接独立洞穴区域</p>
+                </div>
+                <div>
+                    <h4>BSP分割算法</h4>
+                    <p>1. 递归地将空间分割为更小的区域</p>
+                    <p>2. 在每个叶节点区域创建房间</p>
+                    <p>3. 连接兄弟节点创建走廊</p>
+                    <p>4. 生成层次化结构的地牢</p>
+                </div>
+            </div>
+            
+            <p style="margin-top: 15px;">提示：使用随机房间算法生成经典RPG风格地牢，细胞自动机生成自然洞穴，BSP分割生成结构化地牢。</p>
+        </div>
+        
+        <footer>
+            <p>地牢地图生成工具 &copy; 2023 | 使用随机房间、细胞自动机和BSP分割算法</p>
+        </footer>
     </div>
-    <canvas id="dungeonCanvas" width="800" height="600"></canvas>
 
     <script>
+        // 获取Canvas和Context
         const canvas = document.getElementById('dungeonCanvas');
         const ctx = canvas.getContext('2d');
-        const TILE_SIZE = 10; // 每个格子像素大小
-        const MAP_WIDTH = canvas.width / TILE_SIZE; // 地图宽度（格子数）
-        const MAP_HEIGHT = canvas.height / TILE_SIZE; // 地图高度（格子数）
-        const MAX_ROOMS = 15; // 最大房间数
-        const MIN_ROOM_SIZE = 4; // 房间最小尺寸（格子）
-        const MAX_ROOM_SIZE = 10; // 房间最大尺寸（格子）
-        const ROOM_PADDING = 2; // 房间间距（避免重叠）
-
-        // 地图数据（0=墙壁，1=房间，2=走廊，3=入口，4=出口）
-        let map = Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(0));
-        let rooms = []; // 存储所有房间信息
-
-        // 房间类（记录位置、尺寸、中心坐标）
+        
+        // 获取控制元素
+        const seedSlider = document.getElementById('seed');
+        const widthSlider = document.getElementById('width');
+        const heightSlider = document.getElementById('height');
+        const roomCountSlider = document.getElementById('roomCountSlider');
+        const roomMinSizeSlider = document.getElementById('roomMinSize');
+        const roomMaxSizeSlider = document.getElementById('roomMaxSize');
+        const corridorWidthSlider = document.getElementById('corridorWidth');
+        const addChestsCheckbox = document.getElementById('addChests');
+        const addEnemiesCheckbox = document.getElementById('addEnemies');
+        
+        const seedValue = document.getElementById('seedValue');
+        const widthValue = document.getElementById('widthValue');
+        const heightValue = document.getElementById('heightValue');
+        const roomCountValue = document.getElementById('roomCountValue');
+        const roomMinSizeValue = document.getElementById('roomMinSizeValue');
+        const roomMaxSizeValue = document.getElementById('roomMaxSizeValue');
+        const corridorWidthValue = document.getElementById('corridorWidthValue');
+        
+        const roomCountStat = document.getElementById('roomCount');
+        const corridorCountStat = document.getElementById('corridorCount');
+        const mapSizeStat = document.getElementById('mapSize');
+        
+        const generateBtn = document.getElementById('generateBtn');
+        const randomSeedBtn = document.getElementById('randomSeedBtn');
+        const dungeonTypes = document.querySelectorAll('.dungeon-type');
+        const algorithmBtns = document.querySelectorAll('.algorithm-btn');
+        
+        // 地图数据
+        let dungeonMap = [];
+        let mapWidth = 80;
+        let mapHeight = 50;
+        let cellSize = 10;
+        let currentAlgorithm = 'rooms';
+        
+        // 地牢元素定义
+        const TILE_TYPES = {
+            WALL: 0,
+            FLOOR: 1,
+            CORRIDOR: 2,
+            START: 3,
+            EXIT: 4,
+            CHEST: 5,
+            ENEMY: 6
+        };
+        
+        // 颜色映射
+        const TILE_COLORS = {
+            [TILE_TYPES.WALL]: '#1a1a2e',
+            [TILE_TYPES.FLOOR]: '#4a4a6d',
+            [TILE_TYPES.CORRIDOR]: '#e94560',
+            [TILE_TYPES.START]: '#f9b572',
+            [TILE_TYPES.EXIT]: '#0f0',
+            [TILE_TYPES.CHEST]: '#ffd700',
+            [TILE_TYPES.ENEMY]: '#ff0000'
+        };
+        
+        // 地牢预设
+        const dungeonPresets = {
+            classic: {width: 80, height: 50, roomCount: 15, roomMinSize: 4, roomMaxSize: 8, corridorWidth: 1},
+            cave: {width: 80, height: 50, roomCount: 8, roomMinSize: 6, roomMaxSize: 12, corridorWidth: 2},
+            maze: {width: 80, height: 50, roomCount: 5, roomMinSize: 3, roomMaxSize: 5, corridorWidth: 1},
+            fortress: {width: 80, height: 50, roomCount: 20, roomMinSize: 3, roomMaxSize: 6, corridorWidth: 1}
+        };
+        
+        // 随机数生成器
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+            }
+            
+            random() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            
+            randomInt(min, max) {
+                return Math.floor(this.random() * (max - min + 1)) + min;
+            }
+        }
+        
+        // 房间类
         class Room {
             constructor(x, y, width, height) {
-                this.x = x; // 左上角x坐标（格子）
-                this.y = y; // 左上角y坐标（格子）
+                this.x = x;
+                this.y = y;
                 this.width = width;
                 this.height = height;
-                this.centerX = x + Math.floor(width / 2); // 中心x
-                this.centerY = y + Math.floor(height / 2); // 中心y
+                this.centerX = Math.floor(x + width / 2);
+                this.centerY = Math.floor(y + height / 2);
             }
-
-            // 绘制房间（填充格子）
-            draw() {
-                ctx.fillStyle = '#ffffff';
-                for (let i = this.x; i < this.x + this.width; i++) {
-                    for (let j = this.y; j < this.y + this.height; j++) {
-                        if (i >= 0 && i < MAP_WIDTH && j >= 0 && j < MAP_HEIGHT) {
-                            map[j][i] = 1; // 标记为房间
-                            drawTile(i, j);
+            
+            intersects(other) {
+                return this.x < other.x + other.width &&
+                       this.x + this.width > other.x &&
+                       this.y < other.y + other.height &&
+                       this.y + this.height > other.y;
+            }
+        }
+        
+        // 随机房间算法
+        function generateRandomRoomsDungeon(seed, width, height, roomCount, minRoomSize, maxRoomSize, corridorWidth) {
+            const random = new SeededRandom(seed);
+            const map = Array(height).fill().map(() => Array(width).fill(TILE_TYPES.WALL));
+            const rooms = [];
+            const corridors = [];
+            
+            // 尝试生成房间
+            for (let i = 0; i < roomCount * 5; i++) {
+                if (rooms.length >= roomCount) break;
+                
+                const roomWidth = random.randomInt(minRoomSize, maxRoomSize);
+                const roomHeight = random.randomInt(minRoomSize, maxRoomSize);
+                const x = random.randomInt(1, width - roomWidth - 1);
+                const y = random.randomInt(1, height - roomHeight - 1);
+                
+                const newRoom = new Room(x, y, roomWidth, roomHeight);
+                
+                // 检查是否与现有房间重叠
+                let overlap = false;
+                for (const room of rooms) {
+                    if (newRoom.intersects(room)) {
+                        overlap = true;
+                        break;
+                    }
+                }
+                
+                if (!overlap) {
+                    rooms.push(newRoom);
+                    
+                    // 在 map 上绘制房间
+                    for (let ry = y; ry < y + roomHeight; ry++) {
+                        for (let rx = x; rx < x + roomWidth; rx++) {
+                            map[ry][rx] = TILE_TYPES.FLOOR;
                         }
                     }
                 }
             }
-
-            // 检查房间是否与其他房间重叠
-            isOverlapping(otherRoom) {
-                return !(
-                    this.x + this.width + ROOM_PADDING < otherRoom.x ||
-                    this.x > otherRoom.x + otherRoom.width + ROOM_PADDING ||
-                    this.y + this.height + ROOM_PADDING < otherRoom.y ||
-                    this.y > otherRoom.y + otherRoom.height + ROOM_PADDING
-                );
-            }
-        }
-
-        // 生成随机地牢核心函数
-        function generateDungeon() {
-            // 重置地图和房间数据
-            map = Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(0));
-            rooms = [];
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 生成随机房间（避免重叠）
-            while (rooms.length < MAX_ROOMS) {
-                const width = Math.floor(Math.random() * (MAX_ROOM_SIZE - MIN_ROOM_SIZE + 1)) + MIN_ROOM_SIZE;
-                const height = Math.floor(Math.random() * (MAX_ROOM_SIZE - MIN_ROOM_SIZE + 1)) + MIN_ROOM_SIZE;
-                const x = Math.floor(Math.random() * (MAP_WIDTH - width - 2)) + 1; // 留1格边界
-                const y = Math.floor(Math.random() * (MAP_HEIGHT - height - 2)) + 1;
-
-                const newRoom = new Room(x, y, width, height);
-                // 检查是否与已有房间重叠
-                const isOverlap = rooms.some(room => newRoom.isOverlapping(room));
-                if (!isOverlap) {
-                    newRoom.draw();
-                    rooms.push(newRoom);
+            
+            // 如果没有生成房间，返回空地图
+            if (rooms.length === 0) return {map, rooms, corridors};
+            
+            // 连接房间
+            for (let i = 0; i < rooms.length - 1; i++) {
+                const roomA = rooms[i];
+                const roomB = rooms[i + 1];
+                
+                // 50%概率从中心连接，50%从随机点连接
+                let startX, startY, endX, endY;
+                
+                if (random.random() > 0.5) {
+                    startX = roomA.centerX;
+                    startY = roomA.centerY;
+                } else {
+                    startX = random.randomInt(roomA.x, roomA.x + roomA.width - 1);
+                    startY = random.randomInt(roomA.y, roomA.y + roomA.height - 1);
                 }
+                
+                if (random.random() > 0.5) {
+                    endX = roomB.centerX;
+                    endY = roomB.centerY;
+                } else {
+                    endX = random.randomInt(roomB.x, roomB.x + roomB.width - 1);
+                    endY = random.randomInt(roomB.y, roomB.y + roomB.height - 1);
+                }
+                
+                corridors.push({startX, startY, endX, endY});
+                
+                // 绘制走廊
+                drawCorridor(map, startX, startY, endX, endY, corridorWidth);
             }
-
-            // 连接所有房间（按顺序连接相邻房间）
-            for (let i = 1; i < rooms.length; i++) {
-                const prevRoom = rooms[i - 1];
-                const currRoom = rooms[i];
-                connectRooms(prevRoom.centerX, prevRoom.centerY, currRoom.centerX, currRoom.centerY);
+            
+            // 随机连接一些房间以增加连通性
+            const extraConnections = Math.floor(rooms.length / 3);
+            for (let i = 0; i < extraConnections; i++) {
+                const roomAIndex = random.randomInt(0, rooms.length - 1);
+                let roomBIndex;
+                do {
+                    roomBIndex = random.randomInt(0, rooms.length - 1);
+                } while (roomBIndex === roomAIndex);
+                
+                const roomA = rooms[roomAIndex];
+                const roomB = rooms[roomBIndex];
+                
+                const startX = random.randomInt(roomA.x, roomA.x + roomA.width - 1);
+                const startY = random.randomInt(roomA.y, roomA.y + roomA.height - 1);
+                const endX = random.randomInt(roomB.x, roomB.x + roomB.width - 1);
+                const endY = random.randomInt(roomB.y, roomB.y + roomB.height - 1);
+                
+                corridors.push({startX, startY, endX, endY});
+                drawCorridor(map, startX, startY, endX, endY, corridorWidth);
             }
-
-            // 标记入口（第一个房间中心）和出口（最后一个房间中心）
-            const startX = rooms[0].centerX;
-            const startY = rooms[0].centerY;
-            const endX = rooms[rooms.length - 1].centerX;
-            const endY = rooms[rooms.length - 1].centerY;
-            map[startY][startX] = 3;
-            map[endY][endX] = 4;
-            ctx.fillStyle = '#ff0000';
-            drawTile(startX, startY);
-            ctx.fillStyle = '#00ff00';
-            drawTile(endX, endY);
+            
+            // 添加起始点和出口
+            if (rooms.length > 0) {
+                const startRoom = rooms[0];
+                const exitRoom = rooms[rooms.length - 1];
+                
+                const startX = Math.floor(startRoom.x + startRoom.width / 2);
+                const startY = Math.floor(startRoom.y + startRoom.height / 2);
+                map[startY][startX] = TILE_TYPES.START;
+                
+                const exitX = Math.floor(exitRoom.x + exitRoom.width / 2);
+                const exitY = Math.floor(exitRoom.y + exitRoom.height / 2);
+                map[exitY][exitX] = TILE_TYPES.EXIT;
+            }
+            
+            return {map, rooms, corridors};
         }
-
-        // 连接两个房间（生成走廊）
-        function connectRooms(x1, y1, x2, y2) {
-            // 先水平连接，再垂直连接（或反之，增加随机性）
+        
+        // 绘制走廊
+        function drawCorridor(map, x1, y1, x2, y2, width) {
+            // 简单的L形走廊
             if (Math.random() > 0.5) {
-                // 水平 -> 垂直
-                drawCorridor(x1, y1, x2, y1);
-                drawCorridor(x2, y1, x2, y2);
+                // 先水平，后垂直
+                drawHorizontalCorridor(map, x1, x2, y1, width);
+                drawVerticalCorridor(map, y1, y2, x2, width);
             } else {
-                // 垂直 -> 水平
-                drawCorridor(x1, y1, x1, y2);
-                drawCorridor(x1, y2, x2, y2);
+                // 先垂直，后水平
+                drawVerticalCorridor(map, y1, y2, x1, width);
+                drawHorizontalCorridor(map, x1, x2, y2, width);
             }
         }
-
-        // 绘制走廊（直线）
-        function drawCorridor(x1, y1, x2, y2) {
-            ctx.fillStyle = '#aaaaaa';
-            const minX = Math.min(x1, x2);
-            const maxX = Math.max(x1, x2);
-            const minY = Math.min(y1, y2);
-            const maxY = Math.max(y1, y2);
-
-            // 水平走廊
-            if (y1 === y2) {
-                for (let x = minX; x <= maxX; x++) {
-                    if (map[y1][x] === 0) { // 只在墙壁上绘制走廊
-                        map[y1][x] = 2;
-                        drawTile(x, y1);
-                    }
-                }
-            } 
-            // 垂直走廊
-            else {
-                for (let y = minY; y <= maxY; y++) {
-                    if (map[y][x1] === 0) {
-                        map[y][x1] = 2;
-                        drawTile(x1, y);
+        
+        function drawHorizontalCorridor(map, x1, x2, y, width) {
+            const startX = Math.min(x1, x2);
+            const endX = Math.max(x1, x2);
+            const halfWidth = Math.floor(width / 2);
+            
+            for (let x = startX; x <= endX; x++) {
+                for (let wy = -halfWidth; wy <= halfWidth; wy++) {
+                    const ny = y + wy;
+                    if (ny >= 0 && ny < map.length && x >= 0 && x < map[0].length) {
+                        if (map[ny][x] === TILE_TYPES.WALL) {
+                            map[ny][x] = TILE_TYPES.CORRIDOR;
+                        }
                     }
                 }
             }
         }
-
-        // 绘制单个格子
-        function drawTile(x, y) {
-            ctx.fillRect(
-                x * TILE_SIZE,
-                y * TILE_SIZE,
-                TILE_SIZE - 1, // 留1px间隙
-                TILE_SIZE - 1
-            );
+        
+        function drawVerticalCorridor(map, y1, y2, x, width) {
+            const startY = Math.min(y1, y2);
+            const endY = Math.max(y1, y2);
+            const halfWidth = Math.floor(width / 2);
+            
+            for (let y = startY; y <= endY; y++) {
+                for (let wx = -halfWidth; wx <= halfWidth; wx++) {
+                    const nx = x + wx;
+                    if (y >= 0 && y < map.length && nx >= 0 && nx < map[0].length) {
+                        if (map[y][nx] === TILE_TYPES.WALL) {
+                            map[y][nx] = TILE_TYPES.CORRIDOR;
+                        }
+                    }
+                }
+            }
         }
-
-        // 初始化生成地牢
-        window.onload = generateDungeon;
-    </script>
-</body>
-</html>
+        
+        // 细胞自动机算法
+        function generateCellularDungeon(seed, width, height, roomCount, minRoomSize, maxRoomSize, corridorWidth) {
+            const random = new SeededRandom(seed);
+            let map = Array(height).fill().map(() => Array(width).fill(TILE_TYPES.WALL));
+            
+            // 随机初始化细胞
+            const fillProbability = 0.45; // 初始为地板的比例
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    map[y][x] = random.random() < fillProbability ? TILE_TYPES.FLOOR : TILE_TYPES.WALL;
+                }
+            }
+            
+            // 应用细胞自动机规则
+            const iterations = 4;
+            for (let i = 0; i < iterations; i++) {
+                map = cellularAutomationIteration(map);
+            }
+            
+            // 移除小的孤立区域
+            map = removeSmallRegions(map, 20);
+            
+            // 识别房间
+            const rooms = findRooms(map);
+            
+            // 连接房间
+            if (rooms.length > 1) {
+                for (let i = 0; i < rooms.length - 1; i++) {
+                    const roomA = rooms[i];
+                    const roomB = rooms[i + 1];
+                    
+                    const startX = random.randomInt(roomA.x, roomA.x + roomA.width - 1);
+                    const startY = random.randomInt(roomA.y, roomA.y + roomA.height - 1);
+                    const endX = random.randomInt(roomB.x, roomB.x + roomB.width - 1);
+                    const endY = random.randomInt(roomB.y, roomB.y + roomB.height - 1);
+                    
+                    drawCorridor(map, startX, startY, endX, endY, corridorWidth);
+                }
+            }
+            
+            // 添加起始点和出口
+            if (rooms.length > 0) {
+                const startRoom = rooms[0];
+                const exitRoom = rooms[rooms.length - 1];
+                
+                const startX = Math.floor(startRoom.x + startRoom.width / 2);
+                const startY = Math.floor(startRoom.y + startRoom.height / 2);
+                map[startY][startX] = TILE_TYPES.START;
+                
+                const exitX = Math.floor(exitRoom.x + exitRoom.width / 2);
+                const exitY = Math.floor(exitRoom.y + exitRoom.height / 2);
+                map[exitY][exitX] = TILE_TYPES.EXIT;
+            }
+            
+            return {map, rooms, corridors: []};
+        }
+        
+        // 细胞自动机迭代
+        function cellularAutomationIteration(map) {
+            const height = map.length;
+            const width = map[0].length;
+            const newMap = Array(height).fill().map(() => Array(width).fill(TILE_TYPES.WALL));
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // 计算周围墙的数量
+                    let wallCount = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const ny = y + dy;
+                            const nx = x + dx;
+                            
+                            if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                                if (map[ny][nx] === TILE_TYPES.WALL) {
+                                    wallCount++;
+                                }
+                            } else {
+                                wallCount++; // 边界算作墙
+                            }
+                        }
+                    }
+                    
+                    // 应用细胞自动机规则
+                    if (map[y][x] === TILE_TYPES.WALL) {
+                        newMap[y][x] = wallCount >= 5 ? TILE_TYPES.WALL : TILE_TYPES.FLOOR;
+                    } else {
+                        newMap[y][x] = wallCount >= 5 ? TILE_TYPES.FLOOR : TILE_TYPES.WALL;
+                    }
+                }
+            }
+            
+            return newMap;
+        }
+        
+        // 查找房间
+        function findRooms(map) {
+            const height = map.length;
+            const width = map[0].length;
+            const visited = Array(height).fill().map(() => Array(width).fill(false));
+            const rooms = [];
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    if (!visited[y][x] && map[y][x] !== TILE_TYPES.WALL) {
+                        // 使用洪水填充查找连通区域
+                        const region = [];
+                        const stack = [{x, y}];
+                        
+                        while (stack.length > 0) {
+                            const {x: cx, y: cy} = stack.pop();
+                            
+                            if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+                            if (visited[cy][cx] || map[cy][cx] === TILE_TYPES.WALL) continue;
+                            
+                            visited[cy][cx] = true;
+                            region.push({x: cx, y: cy});
+                            
+                            stack.push({x: cx - 1, y: cy});
+                            stack.push({x: cx + 1, y: cy});
+                            stack.push({x: cx, y: cy - 1});
+                            stack.push({x: cx, y: cy + 1});
+                        }
+                        
+                        if (region.length > 10) { // 最小房间大小
+                            // 计算区域的边界
+                            let minX = width, maxX = 0, minY = height, maxY = 0;
+                            for (const point of region) {
+                                if (point.x < minX) minX = point.x;
+                                if (point.x > maxX) maxX = point.x;
+                                if (point.y < minY) minY = point.y;
+                                if (point.y > maxY) maxY = point.y;
+                            }
+                            
+                            const roomWidth = maxX - minX + 1;
+                            const roomHeight = maxY - minY + 1;
+                            
+                            rooms.push(new Room(minX, minY, roomWidth, roomHeight));
+                        }
+                    }
+                }
+            }
+            
+            return rooms;
+        }
+        
+        // 移除小区域
+        function removeSmallRegions(map, threshold) {
+            const height = map.length;
+            const width = map[0].length;
+            const visited = Array(height).fill().map(() => Array(width).fill(false));
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    if (!visited[y][x] && map[y][x] !== TILE_TYPES.WALL) {
+                        const region = [];
+                        const stack = [{x, y}];
+                        
+                        while (stack.length > 0) {
+                            const {x: cx, y: cy} = stack.pop();
+                            
+                            if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+                            if (visited[cy][cx] || map[cy][cx] === TILE_TYPES.WALL) continue;
+                            
+                            visited[cy][cx] = true;
+                            region.push({x: cx, y: cy});
+                            
+                            stack.push({x: cx - 1, y: cy});
+                            stack.push({x: cx + 1, y: cy});
+                            stack.push({x: cx, y: cy - 1});
+                            stack.push({x: cx, y: cy + 1});
+                        }
+                        
+                        if (region.length < threshold) {
+                            // 移除小区域
+                            for (const point of region) {
+                                map[point.y][point.x] = TILE_TYPES.WALL;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return map;
+        }
+        
+        // BSP分割算法
+        function generateBSPDungeon(seed, width, height, roomCount, minRoomSize, maxRoomSize, corridorWidth) {
+            const random = new SeededRandom(seed);
+            
+            // BSP节点类
+            class BSPNode {
+                constructor(x, y, width, height) {
+                    this.x = x;
+                    this.y = y;
+                    this.width = width;
+                    this.height = height;
+                    this.left = null;
+                    this.right = null;
+                    this.room = null;
+                }
+                
+                split() {
+                    if (this.left || this.right) return false; // 已经分割过了
+                    
+                    // 选择分割方向
+                    const splitHorizontal = random.random() > 0.5;
+                    
+                    if (splitHorizontal) {
+                        if (this.height < minRoomSize * 2) return false;
+                        const split = random.randomInt(minRoomSize, this.height - minRoomSize);
+                        this.left = new BSPNode(this.x, this.y, this.width, split);
+                        this.right = new BSPNode(this.x, this.y + split, this.width, this.height - split);
+                    } else {
+                        if (this.width < minRoomSize * 2) return false;
+                        const split = random.randomInt(minRoomSize, this.width - minRoomSize);
+                        this.left = new BSPNode(this.x, this.y, split, this.height);
+                        this.right = new BSPNode(this.x + split, this.y, this.width - split, this.height);
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            // 创建BSP树
+            const root = new BSPNode(1, 1, width - 2, height - 2);
+            const nodes = [root];
+            
+            // 分割节点直到达到房间数量或无法再分割
+            for (let i = 0; i < roomCount * 2; i++) {
+                const node = nodes.shift();
+                if (!node) break;
+                
+                if (node.split()) {
+                    nodes.push(node.left);
+                    nodes.push(node.right);
+                } else {
+                    nodes.push(node);
+                }
+            }
+            
+            // 收集所有叶节点
+            const leaves = [];
+            const collectLeaves = (node) => {
+                if (!node.left && !node.right) {
+                    leaves.push(node);
+                } else {
+                    if (node.left) collectLeaves(node.left);
+                    if (node.right) collectLeaves(node.right);
+                }
+            };
+            collectLeaves(root);
+            
+            // 在叶节点中创建房间
+            const rooms = [];
+            const map = Array(height).fill().map(() => Array(width).fill(TILE_TYPES.WALL));
+            
+            for (const leaf of leaves) {
+                const roomWidth = random.randomInt(minRoomSize, Math.min(maxRoomSize, leaf.width - 2));
+                const roomHeight = random.randomInt(minRoomSize, Math.min(maxRoomSize, leaf.height - 2));
+                const roomX = leaf.x + random.randomInt(1, leaf.width - roomWidth - 1);
+                const roomY = leaf.y + random.randomInt(1, leaf.height - roomHeight - 1);
+                
+                const room = new Room(roomX, roomY, roomWidth, roomHeight);
+                leaf.room = room;
+                rooms.push(room);
+                
+                // 绘制房间
+                for (let y = roomY; y < roomY + roomHeight; y++) {
+                    for (let x = roomX; x < roomX + roomWidth; x++) {
+                            map[y][x] = TILE_TYPES.FLOOR;
+                        }
+                    }
+                }
+                
+                // 连接房间
+                const corridors = [];
+                const connectNodes = (node) => {
+                    if (!node.left || !node.right) return;
+                    
+                    // 连接左右子节点的房间
+                    if (node.left.room && node.right.room) {
+                        const roomA = node.left.room;
+                        const roomB = node.right.room;
+                        
+                        const startX = random.randomInt(roomA.x, roomA.x + roomA.width - 1);
+                        const startY = random.randomInt(roomA.y, roomA.y + roomA.height - 1);
+                        const endX = random.randomInt(roomB.x, roomB.x + roomB.width - 1);
+                        const endY = random.randomInt(roomB.y, roomB.y + roomB.height - 1);
+                        
+                        corridors.push({startX, startY, endX, endY});
+                        drawCorridor(map, startX, startY, endX, endY, corridorWidth);
+                    }
+                    
+                    connectNodes(node.left);
+                    connectNodes(node.right);
+                };
+                
+                connectNodes(root);
+                
+                // 添加起始点和出口
+                if (rooms.length > 0) {
+                    const startRoom = rooms[0];
+                    const exitRoom = rooms[rooms.length - 1];
+                    
+                    const startX = Math.floor(startRoom.x + startRoom.width / 2);
+                    const startY = Math.floor(startRoom.y + startRoom.height / 2);
+                    map[startY][startX] = TILE_TYPES.START;
+                    
+                    const exitX = Math.floor(exitRoom.x + exitRoom.width / 2);
+                    const exitY = Math.floor(exitRoom.y + exitRoom.height / 2);
+                    map[exitY][exitX] = TILE_TYPES.EXIT;
+                }
+                
+                return {map, rooms, corridors};
+            }
+            
+            // 添加额外元素
+            function addExtraElements(map, seed, addChests, addEnemies) {
+                const random = new SeededRandom(seed);
+                const height = map.length;
+                const width = map[0].length;
+                
+                if (addChests) {
+                    // 添加宝箱
+                    const chestCount = random.randomInt(3, 8);
+                    for (let i = 0; i < chestCount; i++) {
+                        let placed = false;
+                        for (let attempt = 0; attempt < 100 && !placed; attempt++) {
+                            const x = random.randomInt(1, width - 2);
+                            const y = random.randomInt(1, height - 2);
+                            
+                            if (map[y][x] === TILE_TYPES.FLOOR || map[y][x] === TILE_TYPES.CORRIDOR) {
+                                // 确保宝箱不紧挨着其他特殊元素
+                                let canPlace = true;
+                                for (let dy = -1; dy <= 1; dy++) {
+                                    for (let dx = -1; dx <= 1; dx++) {
+                                        const ny = y + dy;
+                                        const nx = x + dx;
+                                        if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                                            if (map[ny][nx] === TILE_TYPES.START || 
+                                                map[ny][nx] === TILE_TYPES.EXIT || 
+                                                map[ny][nx] === TILE_TYPES.CHEST ||
+                                                map[ny][nx] === TILE_TYPES.ENEMY) {
+                                                canPlace = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!canPlace) break;
+                                }
+                                
+                                if (canPlace) {
+                                    map[y][x] = TILE_TYPES.CHEST;
+                                    placed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (addEnemies) {
+                    // 添加敌人标记
+                    const enemyCount = random.randomInt(5, 15);
+                    for (let i = 0; i < enemyCount; i++) {
+                        let placed = false;
+                        for (let attempt = 0; attempt < 100 && !placed; attempt++) {
+                            const x = random.randomInt(1, width - 2);
+                            const y = random.randomInt(1, height - 2);
+                            
+                            if (map[y][x] === TILE_TYPES.FLOOR || map[y][x] === TILE_TYPES.CORRIDOR) {
+                                // 确保敌人不紧挨着其他特殊元素
+                                let canPlace = true;
+                                for (let dy = -1; dy <= 1; dy++) {
+                                    for (let dx = -1; dx <= 1; dx++) {
+                                        const ny = y + dy;
+                                        const nx = x + dx;
+                                        if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                                            if (map[ny][nx] === TILE_TYPES.START || 
+                                                map[ny][nx] === TILE_TYPES.EXIT || 
+                                                map[ny][nx] === TILE_TYPES.CHEST) {
+                                                canPlace = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!canPlace) break;
+                                }
+                                
+                                if (canPlace) {
+                                    map[y][x] = TILE_TYPES.ENEMY;
+                                    placed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                return map;
+            }
+            
+            // 绘制地图
+            function drawMap(map) {
+                const width = map[0].length;
+                const height = map.length;
+                
+                // 计算合适的单元格大小
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                cellSize = Math.min(
+                    Math.floor(canvasWidth / width),
+                    Math.floor(canvasHeight / height)
+                );
+                
+                // 居中地图
+                const offsetX = Math.floor((canvasWidth - width * cellSize) / 2);
+                const offsetY = Math.floor((canvasHeight - height * cellSize) / 2);
+                
+                // 清空画布
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
+                // 绘制地图
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const tileType = map[y][x];
+                        ctx.fillStyle = TILE_COLORS[tileType] || TILE_COLORS[TILE_TYPES.WALL];
+                        
+                        const px = offsetX + x * cellSize;
+                        const py = offsetY + y * cellSize;
+                        
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                        
+                        // 绘制网格
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(px, py, cellSize, cellSize);
+                        
+                        // 绘制特殊图标的简单表示
+                        if (tileType === TILE_TYPES.START) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${cellSize * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('S', px + cellSize/2, py + cellSize/2);
+                        } else if (tileType === TILE_TYPES.EXIT) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${cellSize * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('E', px + cellSize/2, py + cellSize/2);
+                        } else if (tileType === TILE_TYPES.CHEST) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${cellSize * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('C', px + cellSize/2, py + cellSize/2);
+                        } else if (tileType === TILE_TYPES.ENEMY) {
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${cellSize * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('X', px + cellSize/2, py + cellSize/2);
+                        }
+                    }
+                }
+            }
+            
+            // 生成地牢
+            function generateDungeon() {
+                const seed = parseInt(seedSlider.value);
+                mapWidth = parseInt(widthSlider.value);
+                mapHeight = parseInt(heightSlider.value);
+                const roomCount = parseInt(roomCountSlider.value);
+                const minRoomSize = parseInt(roomMinSizeSlider.value);
+                const maxRoomSize = parseInt(roomMaxSizeSlider.value);
+                const corridorWidth = parseInt(corridorWidthSlider.value);
+                const addChests = addChestsCheckbox.checked;
+                const addEnemies = addEnemiesCheckbox.checked;
+                
+                let dungeon;
+                
+                switch (currentAlgorithm) {
+                    case 'rooms':
+                        dungeon = generateRandomRoomsDungeon(seed, mapWidth, mapHeight, roomCount, minRoomSize, maxRoomSize, corridorWidth);
+                        break;
+                    case 'cellular':
+                        dungeon = generateCellularDungeon(seed, mapWidth, mapHeight, roomCount, minRoomSize, maxRoomSize, corridorWidth);
+                        break;
+                    case 'bsp':
+                        dungeon = generateBSPDungeon(seed, mapWidth, mapHeight, roomCount, minRoomSize, maxRoomSize, corridorWidth);
+                        break;
+                    default:
+                        dungeon = generateRandomRoomsDungeon(seed, mapWidth, mapHeight, roomCount, minRoomSize, maxRoomSize, corridorWidth);
+                }
+                
+                // 添加额外元素
+                dungeon.map = addExtraElements(dungeon.map, seed, addChests, addEnemies);
+                
+                // 绘制地图
+                drawMap(dungeon.map);
+                
+                // 更新统计信息
+                updateStats(dungeon);
+            }
+            
+            // 更新统计信息
+            function updateStats(dungeon) {
+                let floorCount = 0;
+                let corridorCount = 0;
+                
+                for (let y = 0; y < dungeon.map.length; y++) {
+                    for (let x = 0; x < dungeon.map[0].length; x++) {
+                        if (dungeon.map[y][x] === TILE_TYPES.FLOOR) floorCount++;
+                        if (dungeon.map[y][x] === TILE_TYPES.CORRIDOR) corridorCount++;
+                    }
+                }
+                
+                roomCountStat.textContent = dungeon.rooms.length;
+                corridorCountStat.textContent = dungeon.corridors.length;
+                mapSizeStat.textContent = `${mapWidth}×${mapHeight}`;
+            }
+            
+            // 更新显示值
+            function updateValues() {
+                seedValue.textContent = seedSlider.value;
+                widthValue.textContent = widthSlider.value;
+                heightValue.textContent = heightSlider.value;
+                roomCountValue.textContent = roomCountSlider.value;
+                roomMinSizeValue.textContent = roomMinSizeSlider.value;
+                roomMaxSizeValue.textContent = roomMaxSizeSlider.value;
+                corridorWidthValue.textContent = corridorWidthSlider.value;
+            }
+            
+            // 应用地牢预设
+            function applyDungeonPreset(presetName) {
+                const preset = dungeonPresets[presetName];
+                
+                widthSlider.value = preset.width;
+                heightSlider.value = preset.height;
+                roomCountSlider.value = preset.roomCount;
+                roomMinSizeSlider.value = preset.roomMinSize;
+                roomMaxSizeSlider.value = preset.roomMaxSize;
+                corridorWidthSlider.value = preset.corridorWidth;
+                
+                updateValues();
+                generateDungeon();
+            }
+            
+            // 事件监听器
+            seedSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            widthSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            heightSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            roomCountSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            roomMinSizeSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            roomMaxSizeSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            corridorWidthSlider.addEventListener('input', () => {
+                updateValues();
+                generateDungeon();
+            });
+            
+            addChestsCheckbox.addEventListener('change', () => {
+                generateDungeon();
+            });
+            
+            addEnemiesCheckbox.addEventListener('change', () => {
+                generateDungeon();
+            });
+            
+            generateBtn.addEventListener('click', () => {
+                generateDungeon();
+            });
+            
+            randomSeedBtn.addEventListener('click', () => {
+                const randomSeed = Math.floor(Math.random() * 99999) + 1;
+                seedSlider.value = randomSeed;
+                updateValues();
+                generateDungeon();
+            });
+            
+            // 算法选择
+            algorithmBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // 移除所有active类
+                    algorithmBtns.forEach(b => b.classList.remove('active'));
+                    // 添加active类到当前选择
+                    btn.classList.add('active');
+                    
+                    // 更新当前算法
+                    currentAlgorithm = btn.getAttribute('data-algorithm');
+                    generateDungeon();
+                });
+            });
+            
+            // 地牢类型选择
+            dungeonTypes.forEach(type => {
+                type.addEventListener('click', () => {
+                    // 移除所有active类
+                    dungeonTypes.forEach(t => t.classList.remove('active'));
+                    // 添加active类到当前选择
+                    type.classList.add('active');
+                    
+                    // 应用预设
+                    const presetType = type.getAttribute('data-type');
+                    applyDungeonPreset(presetType);
+                });
+            });
+            
+            // 初始生成地牢
+            updateValues();
+            generateDungeon();
+            
+            // 添加键盘快捷键
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'g') {
+                    e.preventDefault();
+                    generateDungeon();
+                }
+                
+                if (e.ctrlKey && e.key === 'r') {
+                    e.preventDefault();
+                    const randomSeed = Math.floor(Math.random() * 99999) + 1;
+                    seedSlider.value = randomSeed;
+                    updateValues();
+                    generateDungeon();
+                }
+            });
+        </script>
+    </body>
+    </html>

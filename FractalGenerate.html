@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分形地图生成工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c1b33, #1a2b4a, #2c3e50);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #f39c12, #e74c3c, #3498db);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            min-width: 500px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #mapCanvas {
+            width: 100%;
+            height: 500px;
+            background-color: #0a1520;
+            border-radius: 5px;
+            display: block;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .terrain-legend {
+            display: flex;
+            margin-top: 10px;
+            height: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .terrain-legend span {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #f39c12;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        
+        .controls {
+            flex: 0 0 300px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .controls h2 {
+            color: #f39c12;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #ddd;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #2a3a4a;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f39c12;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(243, 156, 18, 0.5);
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .algorithm-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .algorithm-btn {
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            color: #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .algorithm-btn:hover {
+            background-color: rgba(243, 156, 18, 0.2);
+            border-color: #f39c12;
+        }
+        
+        .algorithm-btn.active {
+            background-color: rgba(243, 156, 18, 0.4);
+            border: 1px solid #f39c12;
+        }
+        
+        .terrain-presets {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .terrain-preset {
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .terrain-preset:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+            border-color: #3498db;
+        }
+        
+        .terrain-preset.active {
+            background-color: rgba(52, 152, 219, 0.4);
+            border: 1px solid #3498db;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            accent-color: #f39c12;
+        }
+        
+        .checkbox-group label {
+            margin-bottom: 0;
+        }
+        
+        .color-scheme {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .color-btn {
+            flex: 1;
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .color-btn:hover {
+            background-color: rgba(231, 76, 60, 0.2);
+            border-color: #e74c3c;
+        }
+        
+        .color-btn.active {
+            background-color: rgba(231, 76, 60, 0.4);
+            border: 1px solid #e74c3c;
+        }
+        
+        .info-panel {
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-panel h3 {
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .algo-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .algo-info div {
+            flex: 1;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            border-left: 3px solid #f39c12;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .export-buttons button {
+            margin-top: 0;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            z-index: 10;
+            display: none;
+        }
+        
+        .loading-text {
+            color: #f39c12;
+            font-size: 1.2rem;
+        }
+        
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .fractal-types {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .fractal-type {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .fractal-type:hover {
+            background-color: rgba(46, 204, 113, 0.2);
+            border-color: #2ecc71;
+        }
+        
+        .fractal-type.active {
+            background-color: rgba(46, 204, 113, 0.4);
+            border: 1px solid #2ecc71;
+        }
+        
+        .resolution-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .resolution-btn {
+            flex: 1;
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .resolution-btn:hover {
+            background-color: rgba(155, 89, 182, 0.2);
+            border-color: #9b59b6;
+        }
+        
+        .resolution-btn.active {
+            background-color: rgba(155, 89, 182, 0.4);
+            border: 1px solid #9b59b6;
+        }
+        
+        @media (max-width: 900px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .canvas-container, .controls {
+                min-width: 100%;
+            }
+            
+            .algo-info {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>分形地图生成工具</h1>
+            <p class="subtitle">使用分形算法生成复杂、自相似的景观图案。分形几何在自然界中无处不在，从山脉、海岸线到云朵，都能看到分形的影子。</p>
+        </header>
+        
+        <div class="content">
+            <div class="canvas-container">
+                <canvas id="mapCanvas" width="513" height="513"></canvas>
+                <div class="terrain-legend">
+                    <span style="background-color: #1a237e;">深海</span>
+                    <span style="background-color: #0d47a1;">海洋</span>
+                    <span style="background-color: #1976d2;">浅海</span>
+                    <span style="background-color: #4caf50;">平原</span>
+                    <span style="background-color: #8bc34a;">森林</span>
+                    <span style="background-color: #ff9800;">丘陵</span>
+                    <span style="background-color: #795548;">山脉</span>
+                    <span style="background-color: #ffffff;">雪山</span>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="fractalDimension">1.0</div>
+                        <div class="stat-label">分形维数</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="renderTime">0ms</div>
+                        <div class="stat-label">渲染时间</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="resolution">513×513</div>
+                        <div class="stat-label">分辨率</div>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div>
+                        <div class="loading-text" id="loadingText">生成中...</div>
+                        <div class="progress-bar">
+                            <div class="progress" id="progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <h2>分形算法</h2>
+                <div class="algorithm-selector">
+                    <div class="algorithm-btn active" data-algorithm="midpoint">中点位移</div>
+                    <div class="algorithm-btn" data-algorithm="diamond-square">菱形-正方形</div>
+                    <div class="algorithm-btn" data-algorithm="fbm">分形布朗运动</div>
+                    <div class="algorithm-btn" data-algorithm="plasma">等离子分形</div>
+                </div>
+                
+                <h2>地图设置</h2>
+                <div class="resolution-selector">
+                    <div class="resolution-btn active" data-size="257">257×257</div>
+                    <div class="resolution-btn" data-size="513">513×513</div>
+                    <div class="resolution-btn" data-size="1025">1025×1025</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="seed">随机种子: <span id="seedValue">12345</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seed" min="1" max="99999" value="12345" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="roughness">粗糙度(H值): <span id="roughnessValue">0.8</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="roughness" min="0.1" max="1" value="0.8" step="0.05">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="amplitude">初始振幅: <span id="amplitudeValue">1.0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="amplitude" min="0.1" max="3" value="1.0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="seaLevel">海平面: <span id="seaLevelValue">0.3</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="seaLevel" min="0" max="1" value="0.3" step="0.01">
+                    </div>
+                </div>
+                
+                <h2>分形参数</h2>
+                <div class="fractal-types">
+                    <div class="fractal-type active" data-type="terrain">地形</div>
+                    <div class="fractal-type" data-type="clouds">云朵</div>
+                    <div class="fractal-type" data-type="mountains">山脉</div>
+                    <div class="fractal-type" data-type="islands">岛屿</div>
+                </div>
+                
+                <div class="control-group" id="iterationsControl">
+                    <label for="iterations">迭代次数: <span id="iterationsValue">8</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="iterations" min="1" max="10" value="8" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group" id="persistenceControl">
+                    <label for="persistence">持续性: <span id="persistenceValue">0.5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="persistence" min="0.1" max="1" value="0.5" step="0.05">
+                    </div>
+                </div>
+                
+                <div class="control-group" id="lacunarityControl">
+                    <label for="lacunarity">频率: <span id="lacunarityValue">2.0</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="lacunarity" min="1.5" max="4" value="2.0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="smooth" checked>
+                    <label for="smooth">平滑地形</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="erosion" checked>
+                    <label for="erosion">模拟侵蚀</label>
+                </div>
+                
+                <h2 style="margin-top: 20px;">颜色方案</h2>
+                <div class="color-scheme">
+                    <div class="color-btn active" data-scheme="terrain">地形</div>
+                    <div class="color-btn" data-scheme="gray">灰度</div>
+                    <div class="color-btn" data-scheme="heat">热力图</div>
+                    <div class="color-btn" data-scheme="rainbow">彩虹</div>
+                </div>
+                
+                <button id="generateBtn">生成地图</button>
+                <button id="randomBtn">随机种子</button>
+                
+                <h2 style="margin-top: 20px;">导出地图</h2>
+                <div class="export-buttons">
+                    <button id="exportPNG">导出PNG</button>
+                    <button id="exportHeight">导出高度图</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>分形算法简介</h3>
+            <p>分形是几何形状，可以细分为部分，每个部分都是整体的缩小副本。在计算机图形学中，分形算法用于生成自然界中常见的不规则、自相似图案。</p>
+            
+            <div class="algo-info">
+                <div>
+                    <h4>中点位移算法</h4>
+                    <p>通过递归分割线段并在中点添加随机位移来生成地形。简单高效，适合生成1D地形轮廓。</p>
+                </div>
+                <div>
+                    <h4>菱形-正方形算法</h4>
+                    <p>通过在正方形网格上交替执行菱形和正方形步骤来生成高度图。是生成2D地形的经典算法。</p>
+                </div>
+                <div>
+                    <h4>分形布朗运动</h4>
+                    <p>通过叠加多个不同频率和振幅的噪声层来生成自然纹理。具有统计自相似性。</p>
+                </div>
+                <div>
+                    <h4>等离子分形</h4>
+                    <p>通过在矩形边上取随机点，然后递归细分来生成类似等离子或云朵的图案。</p>
+                </div>
+            </div>
+            
+            <p style="margin-top: 15px;">提示：分形维数描述了地形的粗糙程度，值越高表示地形越粗糙、复杂。</p>
+        </div>
+        
+        <footer>
+            <p>分形地图生成工具 &copy; 2023 | 中点位移、菱形-正方形、分形布朗运动、等离子分形算法实现</p>
+        </footer>
+    </div>
+
+    <script>
+        // 获取Canvas和Context
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const progressBar = document.getElementById('progress');
+        
+        // 获取控制元素
+        const seedSlider = document.getElementById('seed');
+        const roughnessSlider = document.getElementById('roughness');
+        const amplitudeSlider = document.getElementById('amplitude');
+        const seaLevelSlider = document.getElementById('seaLevel');
+        const iterationsSlider = document.getElementById('iterations');
+        const persistenceSlider = document.getElementById('persistence');
+        const lacunaritySlider = document.getElementById('lacunarity');
+        const smoothCheckbox = document.getElementById('smooth');
+        const erosionCheckbox = document.getElementById('erosion');
+        
+        const seedValue = document.getElementById('seedValue');
+        const roughnessValue = document.getElementById('roughnessValue');
+        const amplitudeValue = document.getElementById('amplitudeValue');
+        const seaLevelValue = document.getElementById('seaLevelValue');
+        const iterationsValue = document.getElementById('iterationsValue');
+        const persistenceValue = document.getElementById('persistenceValue');
+        const lacunarityValue = document.getElementById('lacunarityValue');
+        const fractalDimensionStat = document.getElementById('fractalDimension');
+        const renderTimeStat = document.getElementById('renderTime');
+        const resolutionStat = document.getElementById('resolution');
+        
+        const generateBtn = document.getElementById('generateBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const exportPNGBtn = document.getElementById('exportPNG');
+        const exportHeightBtn = document.getElementById('exportHeight');
+        const algorithmBtns = document.querySelectorAll('.algorithm-btn');
+        const resolutionBtns = document.querySelectorAll('.resolution-btn');
+        const fractalTypeBtns = document.querySelectorAll('.fractal-type');
+        const colorSchemeBtns = document.querySelectorAll('.color-btn');
+        
+        // 颜色方案
+        const COLOR_SCHEMES = {
+            terrain: [
+                { value: 0.0, color: '#1a237e' },
+                { value: 0.2, color: '#0d47a1' },
+                { value: 0.3, color: '#1976d2' },
+                { value: 0.4, color: '#4caf50' },
+                { value: 0.6, color: '#8bc34a' },
+                { value: 0.75, color: '#ff9800' },
+                { value: 0.85, color: '#795548' },
+                { value: 0.95, color: '#ffffff' }
+            ],
+            gray: [
+                { value: 0.0, color: '#000000' },
+                { value: 0.25, color: '#333333' },
+                { value: 0.5, color: '#666666' },
+                { value: 0.75, color: '#999999' },
+                { value: 1.0, color: '#ffffff' }
+            ],
+            heat: [
+                { value: 0.0, color: '#000000' },
+                { value: 0.25, color: '#ff0000' },
+                { value: 0.5, color: '#ffff00' },
+                { value: 0.75, color: '#00ff00' },
+                { value: 1.0, color: '#ffffff' }
+            ],
+            rainbow: [
+                { value: 0.0, color: '#ff0000' },
+                { value: 0.2, color: '#ffff00' },
+                { value: 0.4, color: '#00ff00' },
+                { value: 0.6, color: '#00ffff' },
+                { value: 0.8, color: '#0000ff' },
+                { value: 1.0, color: '#ff00ff' }
+            ]
+        };
+        
+        // 分形预设
+        const FRACTAL_PRESETS = {
+            terrain: { roughness: 0.8, amplitude: 1.0, seaLevel: 0.3, iterations: 8, persistence: 0.5, lacunarity: 2.0 },
+            clouds: { roughness: 0.5, amplitude: 0.8, seaLevel: 0.5, iterations: 6, persistence: 0.7, lacunarity: 2.5 },
+            mountains: { roughness: 0.9, amplitude: 2.0, seaLevel: 0.2, iterations: 9, persistence: 0.4, lacunarity: 1.8 },
+            islands: { roughness: 0.7, amplitude: 0.6, seaLevel: 0.4, iterations: 7, persistence: 0.6, lacunarity: 2.2 }
+        };
+        
+        // 算法参数可见性
+        const ALGORITHM_PARAMS = {
+            'midpoint': ['iterations', 'amplitude', 'roughness'],
+            'diamond-square': ['iterations', 'amplitude', 'roughness'],
+            'fbm': ['persistence', 'lacunarity', 'iterations'],
+            'plasma': ['iterations', 'amplitude']
+        };
+        
+        // 当前状态
+        let currentAlgorithm = 'midpoint';
+        let currentColorScheme = 'terrain';
+        let currentResolution = 513;
+        let isRendering = false;
+        
+        // 伪随机数生成器
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+            }
+            
+            random() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            
+            randomRange(min, max) {
+                return min + (max - min) * this.random();
+            }
+            
+            randomGaussian(mean = 0, stdDev = 1) {
+                // Box-Muller变换
+                let u1 = 0, u2 = 0;
+                while (u1 === 0) u1 = this.random();
+                while (u2 === 0) u2 = this.random();
+                const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                return z0 * stdDev + mean;
+            }
+        }
+        
+        // 分形算法实现
+        
+        // 1. 中点位移算法
+        class MidpointDisplacement {
+            constructor(size, amplitude, roughness) {
+                this.size = size;
+                this.amplitude = amplitude;
+                this.roughness = roughness;
+                this.map = new Array(size);
+                for (let i = 0; i < size; i++) {
+                    this.map[i] = new Array(size);
+                }
+            }
+            
+            generate(seed) {
+                const random = new SeededRandom(seed);
+                const size = this.size;
+                const halfSize = size - 1;
+                
+                // 初始化四个角
+                this.map[0][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[0][halfSize] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[halfSize][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[halfSize][halfSize] = random.randomRange(-this.amplitude, this.amplitude);
+                
+                let step = halfSize;
+                let amplitude = this.amplitude;
+                
+                while (step > 1) {
+                    const halfStep = Math.floor(step / 2);
+                    
+                    // 中点步骤
+                    for (let y = 0; y < halfSize; y += step) {
+                        for (let x = 0; x < halfSize; x += step) {
+                            const avg = (
+                                this.map[x][y] + 
+                                this.map[x + step][y] + 
+                                this.map[x][y + step] + 
+                                this.map[x + step][y + step]
+                            ) / 4;
+                            
+                            this.map[x + halfStep][y + halfStep] = avg + random.randomRange(-amplitude, amplitude);
+                        }
+                    }
+                    
+                    // 边缘点
+                    for (let y = 0; y <= halfSize; y += halfStep) {
+                        for (let x = (y + halfStep) % step; x <= halfSize; x += step) {
+                            let sum = 0;
+                            let count = 0;
+                            
+                            if (x - halfStep >= 0) { sum += this.map[x - halfStep][y]; count++; }
+                            if (x + halfStep <= halfSize) { sum += this.map[x + halfStep][y]; count++; }
+                            if (y - halfStep >= 0) { sum += this.map[x][y - halfStep]; count++; }
+                            if (y + halfStep <= halfSize) { sum += this.map[x][y + halfStep]; count++; }
+                            
+                            this.map[x][y] = (sum / count) + random.randomRange(-amplitude, amplitude);
+                        }
+                    }
+                    
+                    step = halfStep;
+                    amplitude *= Math.pow(2, -this.roughness);
+                }
+                
+                return this.map;
+            }
+        }
+        
+        // 2. 菱形-正方形算法
+        class DiamondSquare {
+            constructor(size, amplitude, roughness) {
+                this.size = size;
+                this.amplitude = amplitude;
+                this.roughness = roughness;
+                this.map = new Array(size);
+                for (let i = 0; i < size; i++) {
+                    this.map[i] = new Array(size);
+                }
+            }
+            
+            generate(seed) {
+                const random = new SeededRandom(seed);
+                const size = this.size;
+                const max = size - 1;
+                
+                // 初始化四个角
+                this.map[0][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[0][max] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[max][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[max][max] = random.randomRange(-this.amplitude, this.amplitude);
+                
+                let step = max;
+                let amplitude = this.amplitude;
+                
+                while (step > 1) {
+                    const half = Math.floor(step / 2);
+                    
+                    // 菱形步骤
+                    for (let y = 0; y < max; y += step) {
+                        for (let x = 0; x < max; x += step) {
+                            const avg = (
+                                this.map[x][y] + 
+                                this.map[x + step][y] + 
+                                this.map[x][y + step] + 
+                                this.map[x + step][y + step]
+                            ) / 4;
+                            
+                            this.map[x + half][y + half] = avg + random.randomRange(-amplitude, amplitude);
+                        }
+                    }
+                    
+                    // 正方形步骤
+                    for (let y = 0; y <= max; y += half) {
+                        for (let x = (y + half) % step; x <= max; x += step) {
+                            let sum = 0;
+                            let count = 0;
+                            
+                            if (x - half >= 0) { sum += this.map[x - half][y]; count++; }
+                            if (x + half <= max) { sum += this.map[x + half][y]; count++; }
+                            if (y - half >= 0) { sum += this.map[x][y - half]; count++; }
+                            if (y + half <= max) { sum += this.map[x][y + half]; count++; }
+                            
+                            this.map[x][y] = (sum / count) + random.randomRange(-amplitude, amplitude);
+                        }
+                    }
+                    
+                    step = half;
+                    amplitude *= Math.pow(2, -this.roughness);
+                }
+                
+                return this.map;
+            }
+        }
+        
+        // 3. 分形布朗运动
+        class FractalBrownianMotion {
+            constructor(size, iterations, persistence, lacunarity) {
+                this.size = size;
+                this.iterations = iterations;
+                this.persistence = persistence;
+                this.lacunarity = lacunarity;
+                this.map = new Array(size);
+                for (let i = 0; i < size; i++) {
+                    this.map[i] = new Array(size);
+                }
+            }
+            
+            generate(seed) {
+                const random = new SeededRandom(seed);
+                const size = this.size;
+                
+                // 生成基础噪声
+                const baseNoise = new Array(size);
+                for (let i = 0; i < size; i++) {
+                    baseNoise[i] = new Array(size);
+                    for (let j = 0; j < size; j++) {
+                        baseNoise[i][j] = random.randomRange(-1, 1);
+                    }
+                }
+                
+                // 生成FBM
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        let value = 0;
+                        let amplitude = 1.0;
+                        let frequency = 1.0;
+                        
+                        for (let i = 0; i < this.iterations; i++) {
+                            const sampleX = x * frequency;
+                            const sampleY = y * frequency;
+                            
+                            const intX = Math.floor(sampleX);
+                            const intY = Math.floor(sampleY);
+                            const fracX = sampleX - intX;
+                            const fracY = sampleY - intY;
+                            
+                            // 双线性插值
+                            const v1 = baseNoise[intX % size][intY % size];
+                            const v2 = baseNoise[(intX + 1) % size][intY % size];
+                            const v3 = baseNoise[intX % size][(intY + 1) % size];
+                            const v4 = baseNoise[(intX + 1) % size][(intY + 1) % size];
+                            
+                            const i1 = this.lerp(v1, v2, fracX);
+                            const i2 = this.lerp(v3, v4, fracX);
+                            const interpolated = this.lerp(i1, i2, fracY);
+                            
+                            value += interpolated * amplitude;
+                            amplitude *= this.persistence;
+                            frequency *= this.lacunarity;
+                        }
+                        
+                        this.map[y][x] = value;
+                    }
+                }
+                
+                return this.map;
+            }
+            
+            lerp(a, b, t) {
+                return a + t * (b - a);
+            }
+        }
+        
+        // 4. 等离子分形
+        class PlasmaFractal {
+            constructor(size, amplitude) {
+                this.size = size;
+                this.amplitude = amplitude;
+                this.map = new Array(size);
+                for (let i = 0; i < size; i++) {
+                    this.map[i] = new Array(size);
+                }
+            }
+            
+            generate(seed) {
+                const random = new SeededRandom(seed);
+                const size = this.size;
+                
+                // 初始化四个角
+                this.map[0][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[0][size-1] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[size-1][0] = random.randomRange(-this.amplitude, this.amplitude);
+                this.map[size-1][size-1] = random.randomRange(-this.amplitude, this.amplitude);
+                
+                this.subdivide(0, 0, size-1, size-1, this.amplitude, random);
+                return this.map;
+            }
+            
+            subdivide(x1, y1, x2, y2, amplitude, random) {
+                const width = x2 - x1;
+                const height = y2 - y1;
+                
+                if (width <= 1 || height <= 1) return;
+                
+                const xMid = Math.floor((x1 + x2) / 2);
+                const yMid = Math.floor((y1 + y2) / 2);
+                
+                // 四个角的值
+                const tl = this.map[x1][y1];
+                const tr = this.map[x2][y1];
+                const bl = this.map[x1][y2];
+                const br = this.map[x2][y2];
+                
+                // 中心点
+                if (this.map[xMid][yMid] === undefined) {
+                    this.map[xMid][yMid] = (tl + tr + bl + br) / 4 + random.randomRange(-amplitude, amplitude);
+                }
+                
+                // 四个边中点
+                if (this.map[xMid][y1] === undefined) {
+                    this.map[xMid][y1] = (tl + tr) / 2 + random.randomRange(-amplitude, amplitude);
+                }
+                if (this.map[xMid][y2] === undefined) {
+                    this.map[xMid][y2] = (bl + br) / 2 + random.randomRange(-amplitude, amplitude);
+                }
+                if (this.map[x1][yMid] === undefined) {
+                    this.map[x1][yMid] = (tl + bl) / 2 + random.randomRange(-amplitude, amplitude);
+                }
+                if (this.map[x2][yMid] === undefined) {
+                    this.map[x2][yMid] = (tr + br) / 2 + random.randomRange(-amplitude, amplitude);
+                }
+                
+                // 递归细分四个子矩形
+                const newAmplitude = amplitude * 0.5;
+                this.subdivide(x1, y1, xMid, yMid, newAmplitude, random);
+                this.subdivide(xMid, y1, x2, yMid, newAmplitude, random);
+                this.subdivide(x1, yMid, xMid, y2, newAmplitude, random);
+                this.subdivide(xMid, yMid, x2, y2, newAmplitude, random);
+            }
+        }
+        
+        // 分形维数计算
+        function calculateFractalDimension(map) {
+            const size = map.length;
+            const boxCounts = new Array(10);
+            
+            for (let boxSize = 2; boxSize <= 20; boxSize += 2) {
+                let boxes = 0;
+                const step = Math.max(1, Math.floor(size / 50));
+                
+                for (let y = 0; y < size; y += step) {
+                    for (let x = 0; x < size; x += step) {
+                        let hasData = false;
+                        
+                        for (let dy = 0; dy < boxSize && y + dy < size; dy++) {
+                            for (let dx = 0; dx < boxSize && x + dx < size; dx++) {
+                                if (map[y + dy][x + dx] !== undefined) {
+                                    hasData = true;
+                                    break;
+                                }
+                            }
+                            if (hasData) break;
+                        }
+                        
+                        if (hasData) boxes++;
+                    }
+                }
+                
+                boxCounts[boxSize/2 - 1] = { size: 1/boxSize, count: boxes };
+            }
+            
+            // 对数回归计算斜率
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            const n = boxCounts.length;
+            
+            for (let i = 0; i < n; i++) {
+                const x = Math.log(boxCounts[i].size);
+                const y = Math.log(boxCounts[i].count);
+                sumX += x;
+                sumY += y;
+                sumXY += x * y;
+                sumXX += x * x;
+            }
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            return (2 - slope).toFixed(2);
+        }
+        
+        // 侵蚀模拟
+        function simulateErosion(map, iterations = 100) {
+            const size = map.length;
+            const newMap = map.map(row => [...row]);
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                for (let y = 1; y < size - 1; y++) {
+                    for (let x = 1; x < size - 1; x++) {
+                        const current = map[y][x];
+                        const neighbors = [
+                            map[y-1][x], map[y+1][x], map[y][x-1], map[y][x+1]
+                        ];
+                        
+                        const minNeighbor = Math.min(...neighbors);
+                        if (current > minNeighbor) {
+                            const diff = (current - minNeighbor) * 0.1;
+                            newMap[y][x] -= diff;
+                            newMap[y-1][x] += diff/4;
+                            newMap[y+1][x] += diff/4;
+                            newMap[y][x-1] += diff/4;
+                            newMap[y][x+1] += diff/4;
+                        }
+                    }
+                }
+            }
+            
+            return newMap;
+        }
+        
+        // 平滑
+        function smoothMap(map, iterations = 1) {
+            const size = map.length;
+            const newMap = map.map(row => [...row]);
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                for (let y = 1; y < size - 1; y++) {
+                    for (let x = 1; x < size - 1; x++) {
+                        let sum = 0;
+                        let count = 0;
+                        
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                sum += map[y + dy][x + dx];
+                                count++;
+                            }
+                        }
+                        
+                        newMap[y][x] = sum / count;
+                    }
+                }
+            }
+            
+            return newMap;
+        }
+        
+        // 归一化地图
+        function normalizeMap(map) {
+            const size = map.length;
+            let min = Infinity;
+            let max = -Infinity;
+            
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    min = Math.min(min, map[y][x]);
+                    max = Math.max(max, map[y][x]);
+                }
+            }
+            
+            const range = max - min;
+            const normalized = map.map(row => 
+                row.map(val => (val - min) / range)
+            );
+            
+            return normalized;
+        }
+        
+        // 根据值获取颜色
+        function getColorForHeight(value, colorScheme) {
+            const colors = COLOR_SCHEMES[colorScheme];
+            
+            for (let i = 0; i < colors.length; i++) {
+                if (value <= colors[i].value || i === colors.length - 1) {
+                    return colors[i].color;
+                }
+            }
+            
+            return colors[0].color;
+        }
+        
+        // 更新UI值
+        function updateUIValues() {
+            seedValue.textContent = seedSlider.value;
+            roughnessValue.textContent = parseFloat(roughnessSlider.value).toFixed(2);
+            amplitudeValue.textContent = parseFloat(amplitudeSlider.value).toFixed(2);
+            seaLevelValue.textContent = parseFloat(seaLevelSlider.value).toFixed(2);
+            iterationsValue.textContent = iterationsSlider.value;
+            persistenceValue.textContent = parseFloat(persistenceSlider.value).toFixed(2);
+            lacunarityValue.textContent = parseFloat(lacunaritySlider.value).toFixed(2);
+        }
+        
+        // 显示/隐藏加载界面
+        function setLoading(loading, message) {
+            isRendering = loading;
+            loadingOverlay.style.display = loading ? 'flex' : 'none';
+            if (loading && message) {
+                loadingText.textContent = message;
+            }
+        }
+        
+        // 更新进度
+        function updateProgress(progress) {
+            progressBar.style.width = `${progress}%`;
+        }
+        
+        // 生成地图
+        function generateMap() {
+            if (isRendering) return;
+            
+            const startTime = performance.now();
+            setLoading(true, '生成分形地形中...');
+            
+            const seed = parseInt(seedSlider.value);
+            const roughness = parseFloat(roughnessSlider.value);
+            const amplitude = parseFloat(amplitudeSlider.value);
+            const seaLevel = parseFloat(seaLevelSlider.value);
+            const iterations = parseInt(iterationsSlider.value);
+            const persistence = parseFloat(persistenceSlider.value);
+            const lacunarity = parseFloat(lacunaritySlider.value);
+            const shouldSmooth = smoothCheckbox.checked;
+            const shouldErode = erosionCheckbox.checked;
+            
+            const size = currentResolution;
+            canvas.width = size;
+            canvas.height = size;
+            resolutionStat.textContent = `${size}×${size}`;
+            
+            // 生成进度更新
+            updateProgress(10);
+            
+            let map;
+            let heightMap;
+            
+            // 选择算法
+            switch(currentAlgorithm) {
+                case 'midpoint':
+                    const md = new MidpointDisplacement(size, amplitude, roughness);
+                    map = md.generate(seed);
+                    updateProgress(40);
+                    break;
+                    
+                case 'diamond-square':
+                    const ds = new DiamondSquare(size, amplitude, roughness);
+                    map = ds.generate(seed);
+                    updateProgress(40);
+                    break;
+                    
+                case 'fbm':
+                    const fbm = new FractalBrownianMotion(size, iterations, persistence, lacunarity);
+                    map = fbm.generate(seed);
+                    updateProgress(40);
+                    break;
+                    
+                case 'plasma':
+                    const plasma = new PlasmaFractal(size, amplitude);
+                    map = plasma.generate(seed);
+                    updateProgress(40);
+                    break;
+            }
+            
+            updateProgress(60);
+            
+            // 后处理
+            if (shouldSmooth) {
+                map = smoothMap(map, 1);
+            }
+            
+            if (shouldErode) {
+                map = simulateErosion(map, 50);
+            }
+            
+            // 归一化
+            heightMap = normalizeMap(map);
+            updateProgress(80);
+            
+            // 计算分形维数
+            const fractalDimension = calculateFractalDimension(map);
+            fractalDimensionStat.textContent = fractalDimension;
+            
+            // 渲染地图
+            renderMap(heightMap, seaLevel);
+            updateProgress(100);
+            
+            const renderTime = performance.now() - startTime;
+            renderTimeStat.textContent = `${Math.round(renderTime)}ms`;
+            
+            setTimeout(() => {
+                setLoading(false);
+            }, 100);
+        }
+        
+        // 渲染地图
+        function renderMap(heightMap, seaLevel) {
+            const size = heightMap.length;
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(size, size);
+            
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const height = heightMap[y][x];
+                    const colorHex = getColorForHeight(height, currentColorScheme);
+                    
+                    const r = parseInt(colorHex.substr(1, 2), 16);
+                    const g = parseInt(colorHex.substr(3, 2), 16);
+                    const b = parseInt(colorHex.substr(5, 2), 16);
+                    
+                    const index = (y * size + x) * 4;
+                    imageData.data[index] = r;
+                    imageData.data[index + 1] = g;
+                    imageData.data[index + 2] = b;
+                    imageData.data[index + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // 导出为PNG
+        function exportAsPNG() {
+            const link = document.createElement('a');
+            link.download = `fractal-map-${currentAlgorithm}-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 导出高度图
+        function exportHeightMap() {
+            const size = canvas.width;
+            const canvas2 = document.createElement('canvas');
+            canvas2.width = size;
+            canvas2.height = size;
+            const ctx2 = canvas2.getContext('2d');
+            const imageData = ctx2.createImageData(size, size);
+            
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const index = (y * size + x) * 4;
+                    const pixelData = ctx.getImageData(x, y, 1, 1).data;
+                    
+                    // 转换为灰度
+                    const gray = pixelData[0] * 0.3 + pixelData[1] * 0.59 + pixelData[2] * 0.11;
+                    
+                    imageData.data[index] = gray;
+                    imageData.data[index + 1] = gray;
+                    imageData.data[index + 2] = gray;
+                    imageData.data[index + 3] = 255;
+                }
+            }
+            
+            ctx2.putImageData(imageData, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `fractal-heightmap-${currentAlgorithm}-${Date.now()}.png`;
+            link.href = canvas2.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 应用预设
+        function applyFractalPreset(presetName) {
+            const preset = FRACTAL_PRESETS[presetName];
+            if (!preset) return;
+            
+            roughnessSlider.value = preset.roughness;
+            amplitudeSlider.value = preset.amplitude;
+            seaLevelSlider.value = preset.seaLevel;
+            iterationsSlider.value = preset.iterations;
+            persistenceSlider.value = preset.persistence;
+            lacunaritySlider.value = preset.lacunarity;
+            
+            updateUIValues();
+            generateMap();
+        }
+        
+        // 切换算法参数可见性
+        function updateAlgorithmParameters() {
+            const algorithmParams = ALGORITHM_PARAMS[currentAlgorithm];
+            const allParamControls = [
+                document.getElementById('iterationsControl'),
+                document.getElementById('persistenceControl'),
+                document.getElementById('lacunarityControl')
+            ];
+            
+            allParamControls.forEach(control => {
+                control.style.display = 'none';
+            });
+            
+            algorithmParams.forEach(param => {
+                const control = document.getElementById(`${param}Control`);
+                if (control) {
+                    control.style.display = 'block';
+                }
+            });
+        }
+        
+        // 事件监听器
+        seedSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        roughnessSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        amplitudeSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        seaLevelSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        iterationsSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        persistenceSlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        lacunaritySlider.addEventListener('input', () => {
+            updateUIValues();
+            generateMap();
+        });
+        
+        smoothCheckbox.addEventListener('change', generateMap);
+        erosionCheckbox.addEventListener('change', generateMap);
+        
+        generateBtn.addEventListener('click', generateMap);
+        
+        randomBtn.addEventListener('click', () => {
+            const randomSeed = Math.floor(Math.random() * 99999) + 1;
+            seedSlider.value = randomSeed;
+            updateUIValues();
+            generateMap();
+        });
+        
+        exportPNGBtn.addEventListener('click', exportAsPNG);
+        exportHeightBtn.addEventListener('click', exportHeightMap);
+        
+        // 算法选择
+        algorithmBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                algorithmBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAlgorithm = btn.getAttribute('data-algorithm');
+                updateAlgorithmParameters();
+                generateMap();
+            });
+        });
+        
+        // 分辨率选择
+        resolutionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                resolutionBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentResolution = parseInt(btn.getAttribute('data-size'));
+                canvas.width = currentResolution;
+                canvas.height = currentResolution;
+                generateMap();
+            });
+        });
+        
+        // 分形类型选择
+        fractalTypeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                fractalTypeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                applyFractalPreset(btn.getAttribute('data-type'));
+            });
+        });
+        
+        // 颜色方案选择
+        colorSchemeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                colorSchemeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentColorScheme = btn.getAttribute('data-scheme');
+                generateMap();
+            });
+        });
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'g') {
+                e.preventDefault();
+                generateMap();
+            }
+            
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                randomBtn.click();
+            }
+            
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                exportAsPNG();
+            }
+        });
+        
+        // 初始生成地图
+        updateUIValues();
+        updateAlgorithmParameters();
+        generateMap();
+    </script>
+</body>
+</html>
